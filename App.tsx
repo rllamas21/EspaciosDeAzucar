@@ -456,7 +456,7 @@ const App: React.FC = () => {
     setTimeout(() => {
       const catalog = document.getElementById('catalog');
       if (catalog) {
-        const yOffset = -100; 
+        const yOffset = -10; 
         const y = catalog.getBoundingClientRect().top + window.pageYOffset + yOffset;
         window.scrollTo({top: y, behavior: 'smooth'});
       }
@@ -469,7 +469,7 @@ const App: React.FC = () => {
     setTimeout(() => {
       const catalog = document.getElementById('catalog');
       if (catalog) {
-        const yOffset = -100; 
+        const yOffset = -30; 
         const y = catalog.getBoundingClientRect().top + window.pageYOffset + yOffset;
         window.scrollTo({top: y, behavior: 'smooth'});
       }
@@ -487,14 +487,20 @@ const App: React.FC = () => {
   });
 
   const getCategoryLabel = (cat: string) => {
-    switch(cat) {
-      case 'Todos': return t('menu_view_all');
-      case 'Mobiliario Signature': return t('menu_furniture');
-      case 'Sistemas Arquitectónicos': return t('menu_arch');
-      case 'Herrajes Joya': return t('menu_hardware');
-      default: return cat;
-    }
-  };
+  switch (cat) {
+    case 'Todos':
+      return 'Ver Todo';
+    case 'Navidad':
+      return 'Navidad';
+    case 'Muebles':
+      return 'Muebles';
+    case 'Arquitectura':
+      return 'Arquitectura';
+    default:
+      return cat;
+  }
+};
+
 
   const handleNavigate = (newView: ViewState) => {
     setView(newView);
