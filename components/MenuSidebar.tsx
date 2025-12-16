@@ -32,11 +32,13 @@ const MenuSidebar: React.FC<MenuSidebarProps> = ({
 }) => {
   // Categories mapping for display
   const categories: { id: Category | 'Todos'; label: string }[] = [
-    { id: 'Todos', label: t('menu_view_all') },
-    { id: 'Mobiliario Signature', label: t('menu_furniture') },
-    { id: 'Sistemas Arquitectónicos', label: t('menu_arch') },
-    { id: 'Herrajes Joya', label: t('menu_hardware') },
-  ];
+  { id: 'Todos', label: 'Ver Todo' },
+  { id: 'Navidad', label: 'Navidad' },
+  { id: 'Muebles', label: 'Muebles' },
+  { id: 'Arquitectura', label: 'Arquitectura' },
+];
+
+
 
   const handleComingSoon = (section: 'projects' | 'philosophy' | 'services') => {
     // Creative Director Copywriting for "Coming Soon" states
