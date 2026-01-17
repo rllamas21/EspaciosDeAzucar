@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, User, ArrowRight, Globe, MessageCircle } from 'lucide-react';
 import { Category, Language, User as UserType } from '../types';
 
@@ -30,15 +30,24 @@ const MenuSidebar: React.FC<MenuSidebarProps> = ({
   onLogout,
   onShowMessage
 }) => {
+  // --- BLOQUEO DE PANTALLA (Para que no se mueva el fondo) ---
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
   // Categories mapping for display
   const categories: { id: Category | 'Todos'; label: string }[] = [
-  { id: 'Todos', label: 'Ver Todo' },
-  { id: 'Navidad', label: 'Navidad' },
-  { id: 'Muebles', label: 'Muebles' },
-  { id: 'Arquitectura', label: 'Arquitectura' },
-];
-
-
+    { id: 'Todos', label: t('menu_view_all') },
+    { id: 'Mobiliario Signature', label: t('menu_furniture') },
+    { id: 'Sistemas Arquitectónicos', label: t('menu_arch') },
+    { id: 'Herrajes Joya', label: t('menu_hardware') },
+  ];
 
   const handleComingSoon = (section: 'projects' | 'philosophy' | 'services') => {
     // Creative Director Copywriting for "Coming Soon" states
@@ -67,7 +76,7 @@ const MenuSidebar: React.FC<MenuSidebarProps> = ({
       />
 
       {/* Sidebar Panel - Reduced pt-32 to pt-24 to pull content up */}
-      <div className={`fixed inset-y-0 left-0 w-[85%] max-w-md bg-[#fafaf9] z-50 shadow-2xl transform transition-transform duration-300 ease-out flex flex-col pt-24 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className={`fixed inset-y-0 left-0 w-[85%] max-w-md h-[100dvh] bg-[#fafaf9] z-50 shadow-2xl transform transition-transform duration-300 ease-out flex flex-col pt-24 overscroll-none ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         
         {/* Scrollable Content - Reduced gap-10 to gap-8 for better density */}
         <div className="flex-1 overflow-y-auto px-6 md:px-8 pb-8 flex flex-col gap-10">

@@ -1,7 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
-import { X, CreditCard, Building2, Copy, Check, UploadCloud, Loader2, ShieldCheck, FileCheck, ArrowRight } from 'lucide-react';
-import { CartItem } from '../types';
+import axios from 'axios';
+import { X, CreditCard, Building2, Check, Loader2, MapPin, User, Phone, ArrowRight, AlertCircle, ShieldCheck, Copy } from 'lucide-react';
+
+// ✅ URL de tu Backend
+const API_URL = process.env.REACT_APP_API_URL || 'https://yobel-admin-638148538936.us-east1.run.app';
+// ✅ TU PUBLIC KEY (Idealmente debería venir de env, pero la dejamos aquí por ahora)
+const STORE_PUBLIC_KEY = 'c701b20b-31fd-4544-ba9e-91c61c75678d';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -9,382 +13,295 @@ interface CheckoutModalProps {
   onReturnToShop: () => void;
   total: number;
   onClearCart: () => void;
+  cart: any[];
 }
 
-type PaymentMethod = 'card' | 'transfer';
-type ProcessingState = 'idle' | 'processing' | 'success';
+type PaymentMethod = 'mercadopago' | 'transfer';
 
-const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturnToShop, total, onClearCart }) => {
-  const [method, setMethod] = useState<PaymentMethod>('card');
-  const [status, setStatus] = useState<ProcessingState>('idle');
-  const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(5);
-  
-  // Card Form State
-  const [cardData, setCardData] = useState({
-    number: '',
-    name: '',
-    expiry: '',
-    cvc: '',
-    dni: '',
-    installments: '1'
-  });
+const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturnToShop, total, onClearCart, cart }) => {
+  // Estado inicial 'transfer' por seguridad, cambiaremos si MP está activo
+  const [method, setMethod] = useState<PaymentMethod>('transfer');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successTransfer, setSuccessTransfer] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
 
-  // Reset state when opening
+  // 🔒 ESTADO NUEVO: Controla si mostramos o no Mercado Pago
+  const [isMpActive, setIsMpActive] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(true);
+
+  // Bloqueo de scroll y Carga de Configuración
   useEffect(() => {
     if (isOpen) {
-      setStatus('idle');
-      setMethod('card');
-      setUploadedFile(null);
-      setCountdown(5);
+      document.body.style.overflow = 'hidden';
+      fetchStoreConfig(); // 👈 Consultamos al abrir el modal
+    } else {
+      document.body.style.overflow = 'unset';
     }
+    return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
 
-  // Auto-redirect countdown logic
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    if (status === 'success' && countdown > 0) {
-      timer = setTimeout(() => setCountdown(prev => prev - 1), 1000);
-    } else if (status === 'success' && countdown === 0) {
-      onReturnToShop(); // Call specific return handler
+  // 🔍 Función para consultar si MP está prendido o apagado
+  const fetchStoreConfig = async () => {
+    try {
+      setLoadingConfig(true);
+      const { data } = await axios.get(`${API_URL}/api/store/auth/config`, {
+        headers: { 'x-public-api-key': STORE_PUBLIC_KEY }
+      });
+      
+      setIsMpActive(data.mercadopago_active);
+      
+      // Si está activo, lo ponemos por defecto. Si no, forzamos transferencia.
+      if (data.mercadopago_active) {
+        setMethod('mercadopago');
+      } else {
+        setMethod('transfer');
+      }
+    } catch (error) {
+      console.error("Error cargando configuración de tienda", error);
+      // Ante la duda (error), desactivamos MP por seguridad
+      setIsMpActive(false);
+      setMethod('transfer');
+    } finally {
+      setLoadingConfig(false);
     }
-    return () => clearTimeout(timer);
-  }, [status, countdown, onReturnToShop]);
+  };
 
-  // Calculate Discount
-  const discount = method === 'transfer' ? total * 0.10 : 0;
-  const finalTotal = total - discount;
+  const [formData, setFormData] = useState({
+    firstName: '', lastName: '', dni: '', phone: '',
+    street: '', number: '', city: '', zip: '', province: 'Buenos Aires'
+  });
 
   if (!isOpen) return null;
 
-  const handleCopy = (text: string, field: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 2000);
+  const discount = method === 'transfer' ? total * 0.10 : 0;
+  const finalTotal = total - discount;
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setUploadedFile(e.target.files[0].name);
-    }
+  const handleCopyCBU = () => {
+      navigator.clipboard.writeText('0070089420000012345678');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStatus('processing');
-    
-    // Simulate API Call
-    setTimeout(() => {
-      setStatus('success');
-      onClearCart();
-    }, 2500);
+    setLoading(true);
+    setError(null);
+
+    if (!formData.firstName || !formData.street || !formData.dni) {
+       setError("Por favor completa los datos de envío obligatorios.");
+       setLoading(false);
+       return;
+    }
+
+    try {
+      const token = localStorage.getItem('yobel_customer_token'); 
+      if (!token) throw new Error("No estás logueado. Por favor inicia sesión.");
+
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'x-public-api-key': STORE_PUBLIC_KEY
+        }
+      };
+
+      const itemsLimpios = cart.map(item => {
+          return {
+              id: Number(item.id),
+              productId: Number(item.id), 
+              title: item.name,
+              name: item.name,
+              quantity: Number(item.quantity),
+              unit_price: Number(item.price),
+              price: Number(item.price),
+              currency_id: "ARS",
+              description: item.cartItemId,
+              picture_url: item.image,
+              selectedColor: item.selectedColor, 
+              selectedSize: item.selectedSize
+          };
+      });
+
+      const orderPayload = {
+        shippingAddress: formData,
+        billingAddress: formData,
+        paymentMethod: method,
+        shippingCost: 0,
+        items: itemsLimpios 
+      };
+      
+      const orderRes = await axios.post(`${API_URL}/api/store/checkout`, orderPayload, config);
+      const { orderId } = orderRes.data;
+      setCreatedOrderId(orderId);
+
+      if (method === 'mercadopago') {
+        // Doble chequeo de seguridad antes de generar link
+        if (!isMpActive) throw new Error("Mercado Pago no está disponible en este momento.");
+        
+        const prefRes = await axios.post(`${API_URL}/api/store/payment/create_preference`, { orderId }, config);
+        window.location.href = prefRes.data.initPoint; 
+      } else {
+        setSuccessTransfer(true);
+        onClearCart(); 
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.error || err.message || "Error al procesar la orden");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = matches && matches[0] || '';
-    const parts = [];
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-    if (parts.length) {
-      return parts.join(' ');
-    } else {
-      return value;
-    }
-  };
-
-  // --- RENDER: SUCCESS STATE ---
-  if (status === 'success') {
+  // --- RENDER: PANTALLA DE ÉXITO (TRANSFERENCIA) ---
+  if (successTransfer) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-stone-900/80 backdrop-blur-md" />
-        <div className="relative bg-white w-full max-w-md p-12 text-center rounded-sm shadow-2xl animate-in zoom-in-95 duration-500">
-           <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
-             <Check className="w-10 h-10 text-green-900" />
+      <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-stone-900/80 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="relative bg-white w-full h-full md:h-auto md:max-w-md p-6 md:p-10 text-center md:rounded shadow-2xl animate-in slide-in-from-bottom-full md:zoom-in-95 duration-300 flex flex-col justify-center overflow-y-auto">
+           <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 flex-shrink-0">
+             <Check className="w-8 h-8 text-green-700" />
            </div>
-           <h2 className="font-serif text-3xl text-stone-900 mb-4">
-             {method === 'transfer' ? 'Comprobante Recibido' : 'Pago Exitoso'}
-           </h2>
-           <p className="text-stone-500 mb-8 font-light">
-             {method === 'transfer' 
-               ? 'Hemos recibido su comprobante. Nuestro equipo lo validará en breve y procesará su envío.' 
-               : 'Su orden ha sido procesada correctamente. En breve recibirá un correo electrónico con los detalles.'}
+           <h2 className="font-serif text-2xl text-stone-900 mb-1">¡Orden #{createdOrderId} Creada!</h2>
+           <p className="text-stone-500 mb-6 text-sm">
+             Reserva confirmada. Para finalizar, transfiere <b>${finalTotal.toLocaleString()}</b> a:
            </p>
-           
-           <div className="space-y-4">
-             <button 
-               onClick={onReturnToShop} // Call specific return handler
-               className="bg-stone-900 text-white px-8 py-3 w-full hover:bg-stone-800 transition-colors uppercase tracking-widest text-xs font-medium flex items-center justify-center gap-2"
-             >
-               Volver a la Tienda <ArrowRight className="w-3 h-3" />
-             </button>
-             <p className="text-[10px] text-stone-400 animate-pulse">
-               Redireccionando en {countdown}s...
-             </p>
+           <div className="bg-stone-50 p-4 rounded text-left space-y-3 mb-6 border border-stone-200 shadow-sm">
+              <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+                <div>
+                    <span className="text-[10px] uppercase tracking-widest text-stone-400 block">CBU</span>
+                    <p className="font-mono text-stone-800 font-medium text-sm sm:text-base break-all">0070089420000012345678</p>
+                </div>
+                <button onClick={handleCopyCBU} className="p-2 ml-2 hover:bg-stone-200 rounded transition-colors text-stone-500 bg-white border border-stone-100 shadow-sm">
+                    {copied ? <Check className="w-4 h-4 text-green-600"/> : <Copy className="w-4 h-4"/>}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[10px] uppercase tracking-widest text-stone-400 block">Alias</span>
+                    <p className="font-mono text-stone-800 font-medium text-sm">ESPACIOS.AZUCAR.AR</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-widest text-stone-400 block">Banco</span>
+                    <p className="text-stone-800 font-medium text-sm">Banco Galicia</p>
+                  </div>
+              </div>
            </div>
+           <div className="bg-blue-50 border border-blue-100 rounded p-4 mb-6 text-left">
+              <div className="flex items-start gap-3">
+                 <div className="bg-blue-100 p-2 rounded-full mt-1"><Phone className="w-4 h-4 text-blue-700" /></div>
+                 <div>
+                    <h4 className="text-sm font-bold text-blue-900 mb-1">Validar Pago</h4>
+                    <p className="text-xs text-blue-800 leading-relaxed">Envíanos el comprobante por WhatsApp indicando tu Orden <b>#{createdOrderId}</b>.</p>
+                 </div>
+              </div>
+           </div>
+           <button onClick={onReturnToShop} className="bg-stone-900 text-white px-6 py-4 w-full hover:bg-stone-800 transition-colors uppercase tracking-widest text-xs font-bold md:rounded-sm shadow-lg">Volver a la Tienda</button>
         </div>
       </div>
     );
   }
 
-  // --- RENDER: FORM STATE ---
+  // --- RENDER: FORMULARIO ---
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 md:p-6">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-
-      <div className="relative bg-[#fafaf9] w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-sm shadow-2xl flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
+    <div className="fixed inset-0 z-[90] flex items-end md:items-center justify-center md:p-6">
+      <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="relative bg-[#fafaf9] w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] overflow-hidden rounded-none md:rounded shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom-full md:fade-in md:slide-in-from-bottom-4 duration-300">
         
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-stone-200 bg-white">
-          <div>
-            <h2 className="font-serif text-xl text-stone-900">Finalizar Compra</h2>
-            <div className="flex items-center gap-2 mt-1">
-              <p className="text-xs text-stone-500 uppercase tracking-widest">Total: ${finalTotal.toLocaleString()}</p>
-              {method === 'transfer' && (
-                <span className="text-[10px] bg-green-100 text-green-800 px-1.5 rounded font-medium">-10% OFF</span>
-              )}
+        {/* COLUMNA IZQUIERDA: DATOS */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-white md:border-r border-stone-200">
+            <div className="p-4 pt-12 md:p-6 md:pt-6 border-b border-stone-100 flex justify-between items-center bg-white">
+               <h2 className="font-serif text-xl text-stone-900">Finalizar Compra</h2>
+               <button onClick={onClose} className="md:hidden p-2 -mr-2 text-stone-400 hover:bg-stone-100 rounded-full"><X className="w-6 h-6"/></button>
             </div>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-full transition-colors text-stone-500">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+                
+                {/* 💳 SELECTOR DE MÉTODOS DE PAGO */}
+                {loadingConfig ? (
+                    <div className="flex justify-center p-4"><Loader2 className="animate-spin text-stone-400" /></div>
+                ) : (
+                    <div className={`grid gap-3 md:gap-4 ${isMpActive ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                        {/* BOTÓN MERCADO PAGO (CONDICIONAL) */}
+                        {isMpActive && (
+                            <button 
+                                type="button" 
+                                onClick={() => setMethod('mercadopago')} 
+                                className={`p-3 md:p-4 border rounded flex flex-col items-center gap-2 transition-all ${method === 'mercadopago' ? 'bg-sky-50 border-sky-200 text-sky-800 ring-1 ring-sky-200 shadow-sm' : 'border-stone-200 text-stone-500 hover:border-stone-300'}`}
+                            >
+                                <CreditCard className="w-5 h-5 md:w-6 md:h-6" />
+                                <span className="text-[10px] md:text-xs font-bold uppercase text-center">Mercado Pago</span>
+                            </button>
+                        )}
+                        
+                        {/* BOTÓN TRANSFERENCIA (SIEMPRE VISIBLE) */}
+                        <button 
+                            type="button" 
+                            onClick={() => setMethod('transfer')} 
+                            className={`p-3 md:p-4 border rounded flex flex-col items-center gap-2 transition-all relative ${method === 'transfer' ? 'bg-green-50 border-green-200 text-green-800 ring-1 ring-green-200 shadow-sm' : 'border-stone-200 text-stone-500 hover:border-stone-300'}`}
+                        >
+                            <div className="absolute top-1 right-1 md:top-2 md:right-2 bg-green-200 text-green-800 text-[8px] md:text-[9px] font-bold px-1.5 rounded">-10%</div>
+                            <Building2 className="w-5 h-5 md:w-6 md:h-6" />
+                            <span className="text-[10px] md:text-xs font-bold uppercase text-center">Transferencia</span>
+                        </button>
+                    </div>
+                )}
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8">
-          
-          {/* Method Selector */}
-          <div className="grid grid-cols-2 gap-4 mb-8">
-            <button
-              onClick={() => setMethod('card')}
-              className={`flex flex-col items-center justify-center p-4 border rounded transition-all duration-300 relative ${
-                method === 'card' 
-                  ? 'bg-white border-stone-900 text-stone-900 shadow-sm ring-1 ring-stone-900' 
-                  : 'bg-transparent border-stone-200 text-stone-400 hover:border-stone-300'
-              }`}
-            >
-              <CreditCard className="w-6 h-6 mb-2" strokeWidth={1.5} />
-              <span className="text-xs font-medium uppercase tracking-wider">Tarjeta</span>
-            </button>
-            <button
-              onClick={() => setMethod('transfer')}
-              className={`flex flex-col items-center justify-center p-4 border rounded transition-all duration-300 relative ${
-                method === 'transfer' 
-                  ? 'bg-white border-stone-900 text-stone-900 shadow-sm ring-1 ring-stone-900' 
-                  : 'bg-transparent border-stone-200 text-stone-400 hover:border-stone-300'
-              }`}
-            >
-              {/* Discount Badge */}
-              <span className="absolute top-2 right-2 bg-green-100 text-green-800 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                -10%
-              </span>
-              <Building2 className="w-6 h-6 mb-2" strokeWidth={1.5} />
-              <span className="text-xs font-medium uppercase tracking-wider">Transferencia</span>
-            </button>
-          </div>
-
-          {/* CARD FORM */}
-          {method === 'card' && (
-            <form id="checkout-form" onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-               <div className="space-y-1">
-                 <label className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Número de Tarjeta</label>
-                 <div className="relative">
-                   <input 
-                     type="text" 
-                     placeholder="0000 0000 0000 0000"
-                     value={cardData.number}
-                     onChange={(e) => setCardData({...cardData, number: formatCardNumber(e.target.value)})}
-                     maxLength={19}
-                     required
-                     className="w-full bg-white border border-stone-200 p-3 pl-10 text-stone-900 focus:outline-none focus:border-stone-900 focus:ring-0 transition-colors font-mono"
-                   />
-                   <CreditCard className="absolute left-3 top-3.5 w-4 h-4 text-stone-400" />
-                 </div>
-               </div>
-
-               <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-1">
-                   <label className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Titular</label>
-                   <input 
-                     type="text" 
-                     placeholder="COMO FIGURA EN LA TARJETA"
-                     required
-                     value={cardData.name}
-                     onChange={(e) => setCardData({...cardData, name: e.target.value.toUpperCase()})}
-                     className="w-full bg-white border border-stone-200 p-3 text-stone-900 focus:outline-none focus:border-stone-900 transition-colors"
-                   />
-                 </div>
-                 <div className="space-y-1">
-                   <label className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">DNI del Titular</label>
-                   <input 
-                     type="text" 
-                     placeholder="XX.XXX.XXX"
-                     required
-                     value={cardData.dni}
-                     onChange={(e) => setCardData({...cardData, dni: e.target.value})}
-                     className="w-full bg-white border border-stone-200 p-3 text-stone-900 focus:outline-none focus:border-stone-900 transition-colors"
-                   />
-                 </div>
-               </div>
-
-               <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-1">
-                   <label className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Vencimiento</label>
-                   <input 
-                     type="text" 
-                     placeholder="MM/AA"
-                     maxLength={5}
-                     required
-                     value={cardData.expiry}
-                     onChange={(e) => setCardData({...cardData, expiry: e.target.value})}
-                     className="w-full bg-white border border-stone-200 p-3 text-stone-900 focus:outline-none focus:border-stone-900 transition-colors text-center"
-                   />
-                 </div>
-                 <div className="space-y-1">
-                   <label className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Cód. Seguridad</label>
-                   <div className="relative">
-                      <input 
-                        type="password" 
-                        placeholder="123"
-                        maxLength={4}
-                        required
-                        value={cardData.cvc}
-                        onChange={(e) => setCardData({...cardData, cvc: e.target.value})}
-                        className="w-full bg-white border border-stone-200 p-3 text-stone-900 focus:outline-none focus:border-stone-900 transition-colors text-center"
-                      />
-                      <ShieldCheck className="absolute right-3 top-3.5 w-4 h-4 text-stone-300" />
-                   </div>
-                 </div>
-               </div>
-
-               <div className="space-y-1">
-                 <label className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Plan de Pagos (Cuotas)</label>
-                 <select 
-                   className="w-full bg-white border border-stone-200 p-3 text-stone-900 focus:outline-none focus:border-stone-900 transition-colors appearance-none"
-                   value={cardData.installments}
-                   onChange={(e) => setCardData({...cardData, installments: e.target.value})}
-                 >
-                   <option value="1">1 pago de ${finalTotal.toLocaleString()} (Sin interés)</option>
-                   <option value="3">3 cuotas de ${(finalTotal/3).toFixed(2)} (Sin interés)</option>
-                   <option value="6">6 cuotas fijas de ${(finalTotal/6 * 1.15).toFixed(2)}</option>
-                 </select>
-               </div>
-            </form>
-          )}
-
-          {/* TRANSFER FORM */}
-          {method === 'transfer' && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-               {/* Discount Banner Inside Form */}
-               <div className="bg-green-50 border border-green-100 p-3 flex items-center gap-3 text-green-800 text-sm rounded">
-                  <Check className="w-4 h-4" />
-                  <span>Descuento del 10% aplicado al seleccionar Transferencia.</span>
-               </div>
-
-               <div className="bg-white border border-stone-200 p-6 rounded relative overflow-hidden">
-                 <div className="absolute top-0 right-0 p-2 bg-stone-100 rounded-bl">
-                   <Building2 className="w-4 h-4 text-stone-400" />
-                 </div>
-                 <h3 className="font-serif text-lg text-stone-900 mb-4">Datos Bancarios</h3>
-                 
-                 <div className="space-y-4">
-                   <div>
-                     <span className="text-[10px] uppercase tracking-widest text-stone-400 block mb-1">Empresa / Titular</span>
-                     <p className="font-medium text-stone-900">Espacios de Azúcar S.R.L.</p>
-                   </div>
-                   
-                   {/* CBU Field */}
-                   <div>
-                     <span className="text-[10px] uppercase tracking-widest text-stone-400 block mb-1">CBU / CVU</span>
-                     <div className="flex gap-2">
-                       <code className="flex-1 bg-stone-50 p-2 text-stone-800 font-mono text-sm border border-stone-100 rounded">
-                         0070089420000012345678
-                       </code>
-                       <button 
-                         onClick={() => handleCopy('0070089420000012345678', 'cbu')}
-                         className="px-3 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded flex items-center justify-center transition-colors min-w-[60px]"
-                       >
-                         {copiedField === 'cbu' ? <Check className="w-4 h-4 text-green-600" /> : <span className="text-xs font-medium">Copiar</span>}
-                       </button>
-                     </div>
-                   </div>
-
-                   {/* Alias Field */}
-                   <div>
-                     <span className="text-[10px] uppercase tracking-widest text-stone-400 block mb-1">Alias</span>
-                     <div className="flex gap-2">
-                       <code className="flex-1 bg-stone-50 p-2 text-stone-800 font-mono text-sm border border-stone-100 rounded">
-                         ESPACIOS.AZUCAR.AR
-                       </code>
-                       <button 
-                         onClick={() => handleCopy('ESPACIOS.AZUCAR.AR', 'alias')}
-                         className="px-3 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded flex items-center justify-center transition-colors min-w-[60px]"
-                       >
-                         {copiedField === 'alias' ? <Check className="w-4 h-4 text-green-600" /> : <span className="text-xs font-medium">Copiar</span>}
-                       </button>
-                     </div>
-                   </div>
-
-                   <div>
-                     <span className="text-[10px] uppercase tracking-widest text-stone-400 block mb-1">Banco</span>
-                     <p className="text-sm text-stone-700">Banco Galicia</p>
-                   </div>
-                 </div>
-               </div>
-
-               {/* Upload Section */}
-               <div className="space-y-2">
-                 <h4 className="text-sm font-medium text-stone-900">Adjuntar Comprobante</h4>
-                 <label className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer transition-all group ${uploadedFile ? 'border-green-200 bg-green-50/30' : 'border-stone-200 hover:border-stone-400 hover:bg-stone-50'}`}>
-                   <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*,.pdf" />
-                   {uploadedFile ? (
-                     <>
-                        <FileCheck className="w-8 h-8 text-green-600 mb-2" />
-                        <span className="text-sm font-medium text-green-800">{uploadedFile}</span>
-                        <span className="text-xs text-green-600 mt-1">Archivo listo para enviar</span>
-                     </>
-                   ) : (
-                     <>
-                        <UploadCloud className="w-8 h-8 text-stone-300 group-hover:text-stone-500 mb-2 transition-colors" />
-                        <span className="text-sm text-stone-500 font-medium group-hover:text-stone-700">Click para subir archivo</span>
-                        <span className="text-xs text-stone-400 mt-1">JPG, PNG o PDF</span>
-                     </>
-                   )}
-                 </label>
-               </div>
+                <form id="checkout-form" onSubmit={handleCheckout} className="space-y-5 pb-6">
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-stone-900 font-medium text-sm border-b border-stone-100 pb-2"><User className="w-4 h-4 text-stone-400"/> Datos Personales</div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <input name="firstName" required placeholder="Nombre" className="input-base" onChange={handleInputChange} />
+                            <input name="lastName" required placeholder="Apellido" className="input-base" onChange={handleInputChange} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <input name="dni" required placeholder="DNI / CUIT" className="input-base" onChange={handleInputChange} />
+                            <input name="phone" required placeholder="Teléfono" className="input-base" onChange={handleInputChange} />
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-stone-900 font-medium text-sm border-b border-stone-100 pb-2 mt-2"><MapPin className="w-4 h-4 text-stone-400"/> Dirección de Entrega</div>
+                        <div className="grid grid-cols-3 gap-3">
+                            <input name="street" required placeholder="Calle" className="input-base col-span-2" onChange={handleInputChange} />
+                            <input name="number" required placeholder="Altura" className="input-base" onChange={handleInputChange} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <input name="city" required placeholder="Ciudad" className="input-base" onChange={handleInputChange} />
+                            <input name="zip" required placeholder="C. Postal" className="input-base" onChange={handleInputChange} />
+                        </div>
+                        <select name="province" className="input-base bg-white" onChange={handleInputChange}>
+                            <option value="Buenos Aires">Buenos Aires</option>
+                            <option value="CABA">CABA</option>
+                            <option value="Cordoba">Córdoba</option>
+                            <option value="Santa Fe">Santa Fe</option>
+                        </select>
+                    </div>
+                </form>
             </div>
-          )}
-
         </div>
-
-        {/* Footer Actions */}
-        <div className="p-6 border-t border-stone-200 bg-white">
-          <button 
-            onClick={handleSubmit}
-            disabled={status === 'processing'}
-            className="w-full bg-stone-900 text-white h-14 flex items-center justify-center gap-3 hover:bg-stone-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {status === 'processing' ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="uppercase tracking-widest text-xs font-medium">Procesando...</span>
-              </>
-            ) : (
-              <span className="uppercase tracking-widest text-xs font-medium">
-                {method === 'transfer' ? `Informar Pago ($${finalTotal.toLocaleString()})` : `Pagar $${finalTotal.toLocaleString()}`}
-              </span>
-            )}
-          </button>
+        {/* COLUMNA DERECHA */}
+        <div className="w-full md:w-80 bg-stone-50 flex flex-col border-t md:border-t-0 md:border-l border-stone-200 flex-shrink-0">
+           <div className="p-4 md:p-6 border-b border-stone-200 hidden md:flex justify-between items-center"><span className="font-serif text-lg">Resumen</span><button onClick={onClose} className="p-1 hover:bg-stone-200 rounded-full"><X className="w-5 h-5 text-stone-500"/></button></div>
+           <div className="flex-1 p-4 md:p-6 space-y-3 bg-white md:bg-transparent">
+              <div className="space-y-1 text-sm text-stone-600">
+                  <div className="flex justify-between"><span>Subtotal</span><span>${total.toLocaleString()}</span></div>
+                  {method === 'transfer' && (<div className="flex justify-between text-green-700 font-medium"><span>Descuento (10%)</span><span>-${discount.toLocaleString()}</span></div>)}
+                  <div className="flex justify-between"><span>Envío</span><span className="text-stone-400 italic text-xs">A convenir</span></div>
+              </div>
+              <div className="border-t border-stone-200 pt-3 md:pt-4"><div className="flex justify-between items-end"><span className="font-serif text-base md:text-lg text-stone-900">Total</span><span className="font-bold text-xl text-stone-900">${finalTotal.toLocaleString()}</span></div></div>
+              {error && (<div className="bg-red-50 text-red-600 p-3 rounded text-xs flex items-start gap-2 animate-pulse border border-red-100"><AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />{error}</div>)}
+           </div>
+           <div className="p-4 md:p-6 bg-white border-t border-stone-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] md:shadow-none z-20">
+              <button onClick={handleCheckout} disabled={loading || loadingConfig} className={`w-full h-14 md:h-12 flex items-center justify-center gap-2 uppercase tracking-widest text-xs font-bold text-white transition-all md:rounded-sm ${loading ? 'bg-stone-400 cursor-wait' : 'bg-stone-900 hover:bg-stone-800 shadow-md active:scale-[0.98]'}`}>
+                {loading ? (<><Loader2 className="w-4 h-4 animate-spin"/> Procesando...</>) : (<>{method === 'mercadopago' ? 'Ir a Pagar Seguro' : 'Confirmar Reserva'} <ArrowRight className="w-4 h-4"/></>)}
+              </button>
+              {method === 'mercadopago' && (<p className="text-[10px] text-center text-stone-400 mt-3 flex items-center justify-center gap-1"><ShieldCheck className="w-3 h-3"/> Checkout seguro por Mercado Pago</p>)}
+           </div>
         </div>
-
       </div>
+      <style>{`.input-base { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #e7e5e4; border-radius: 4px; outline: none; transition: all 0.2s; background-color: #fff; } .input-base:focus { border-color: #1c1917; box-shadow: 0 0 0 1px #1c1917; } @media (min-width: 768px) { .input-base { padding: 10px; font-size: 0.875rem; border-radius: 2px; } }`}</style>
     </div>
   );
 };
