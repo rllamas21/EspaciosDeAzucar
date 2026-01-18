@@ -251,6 +251,16 @@ const App: React.FC = () => {
   });
   const dynamicCategories = ['Todos', ...new Set(products.map(p => p.category))];
 
+  // 1. Evitar parpadeo: Si está cargando, mostramos pantalla completa de carga
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-stone-50 text-stone-400">
+        <Loader2 className="w-8 h-8 animate-spin" />
+        <p className="mt-4 text-[10px] uppercase tracking-[0.3em]">Cargando...</p>
+      </div>
+    );
+  }
+
   // --- BLOQUEO DE SEGURIDAD: PANTALLA DE MANTENIMIENTO ---
   if (isStoreSuspended) {
     return (
@@ -272,15 +282,6 @@ const App: React.FC = () => {
             <br className="hidden md:block"/>
             Por favor, vuelve a intentarlo en unos minutos.
           </p>
-
-          <div className="flex justify-center gap-4">
-             <button 
-               onClick={() => window.location.reload()}
-               className="px-6 py-2 bg-stone-900 text-white text-sm uppercase tracking-widest hover:bg-stone-800 transition-colors"
-             >
-               Recargar Página
-             </button>
-          </div>
 
           <div className="text-[10px] text-stone-300 uppercase tracking-widest mt-10">
             Espacios de Azúcar &copy; 2025
@@ -373,9 +374,7 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              {loading ? (
-                <div className="flex flex-col items-center justify-center h-64 gap-4 text-stone-400"><Loader2 className="w-8 h-8 animate-spin" /><p className="text-sm tracking-widest uppercase">Cargando catálogo...</p></div>
-              ) : (
+              
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
                   {filteredProducts.length > 0 ? (
                     filteredProducts.map(p => (
@@ -390,7 +389,7 @@ const App: React.FC = () => {
                     </div>
                   )}
                 </div>
-              )}
+    
             </section>
 
             {/* SECCIÓN RICA RESTAURADA */}
