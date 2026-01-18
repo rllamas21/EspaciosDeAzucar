@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import { X, CreditCard, Building2, Check, Loader2, MapPin, User, Phone, ArrowRight, AlertCircle, ShieldCheck, Copy } from 'lucide-react';
-
-// ✅ URL de tu Backend
-const API_URL = process.env.REACT_APP_API_URL || 'https://yobel-admin-638148538936.us-east1.run.app';
-// ✅ TU PUBLIC KEY (Idealmente debería venir de env, pero la dejamos aquí por ahora)
-const STORE_PUBLIC_KEY = 'c701b20b-31fd-4544-ba9e-91c61c75678d';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -46,9 +41,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
   const fetchStoreConfig = async () => {
     try {
       setLoadingConfig(true);
-      const { data } = await axios.get(`${API_URL}/api/store/auth/config`, {
-        headers: { 'x-public-api-key': STORE_PUBLIC_KEY }
-      });
+      const { data } = await api.get('/api/store/auth/config');
       
       setIsMpActive(data.mercadopago_active);
       
@@ -103,13 +96,6 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
       const token = localStorage.getItem('yobel_customer_token'); 
       if (!token) throw new Error("No estás logueado. Por favor inicia sesión.");
 
-      const config = {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'x-public-api-key': STORE_PUBLIC_KEY
-        }
-      };
-
       const itemsLimpios = cart.map(item => {
           return {
               id: Number(item.id),
@@ -135,7 +121,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
         items: itemsLimpios 
       };
       
-      const orderRes = await axios.post(`${API_URL}/api/store/checkout`, orderPayload, config);
+      const orderRes = await api.post('/api/store/checkout', orderPayload);
       const { orderId } = orderRes.data;
       setCreatedOrderId(orderId);
 
@@ -143,7 +129,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
         // Doble chequeo de seguridad antes de generar link
         if (!isMpActive) throw new Error("Mercado Pago no está disponible en este momento.");
         
-        const prefRes = await axios.post(`${API_URL}/api/store/payment/create_preference`, { orderId }, config);
+        const prefRes = await api.post('/api/store/payment/create_preference', { orderId });
         window.location.href = prefRes.data.initPoint; 
       } else {
         setSuccessTransfer(true);
