@@ -282,10 +282,6 @@ const App: React.FC = () => {
             <br className="hidden md:block"/>
             Por favor, vuelve a intentarlo en unos minutos.
           </p>
-
-          <div className="text-[10px] text-stone-300 uppercase tracking-widest mt-10">
-            Espacios de Azúcar &copy; 2025
-          </div>
         </div>
       </div>
     );
