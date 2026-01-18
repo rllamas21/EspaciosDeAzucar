@@ -1,12 +1,10 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import api from '../lib/api';
 
-// Definimos la estructura del Usuario
 interface User {
   id: number;
   name: string;
   email: string;
-  // Agregamos campos opcionales que podrían venir
   phone?: string;
 }
 
@@ -23,10 +21,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  // Iniciamos loading en true para que no "parpadee" el login al dar F5
   const [loading, setLoading] = useState(true);
 
-  // 1. Verificar sesión al cargar la página (Persistencia F5) 🔄
+  // 1. Persistencia de Sesión con limpieza de errores
   useEffect(() => {
     const checkUser = async () => {
       const token = localStorage.getItem('yobel_customer_token');
@@ -37,15 +34,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       try {
-        // Configuramos el header temporalmente para esta petición
-        // (Aunque idealmente esto debe estar en el interceptor de axios)
+        // Validamos token contra el backend
         const { data } = await api.get('/api/store/auth/me', {
             headers: { Authorization: `Bearer ${token}` }
         });
         
         setUser(data.customer);
       } catch (error) {
-        console.log("Sesión expirada o token inválido");
+        console.log("Sesión inválida");
         localStorage.removeItem('yobel_customer_token');
         setUser(null);
       } finally {
@@ -61,13 +57,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { data } = await api.post('/api/store/auth/login', { email, password });
       
-      // Guardamos en disco y en memoria
       localStorage.setItem('yobel_customer_token', data.token);
       setUser(data.customer);
       
       return { success: true };
     } catch (error: any) {
-      console.error("Login error:", error);
       return { 
         success: false, 
         error: error.response?.data?.error || "Credenciales incorrectas" 
@@ -85,7 +79,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       return { success: true };
     } catch (error: any) {
-      console.error("Register error:", error);
       return { 
         success: false, 
         error: error.response?.data?.error || "Error al registrarse" 
@@ -93,12 +86,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // 4. Logout
+
   const logout = () => {
+
     localStorage.removeItem('yobel_customer_token');
+
     setUser(null);
-    // Redirigir al login de la tienda
-    window.location.href = '/store/login'; 
+    
+
   };
 
   return (
