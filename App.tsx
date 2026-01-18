@@ -171,7 +171,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
 type ViewState = 'home' | 'account' | 'shipping' | 'returns';
 
 const App: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth(); 
   const [view, setView] = useState<ViewState>('home');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -195,29 +195,39 @@ const App: React.FC = () => {
   const [sizeModal, setSizeModal] = useState<{ isOpen: boolean; product: Product | null; selectedColor: ColorOption | null; }>({ isOpen: false, product: null, selectedColor: null });
   const [localWishlist, setLocalWishlist] = useState<Product[]>([]);
 
+  // --- SINCRONIZACIÓN DE CARRITO CON BACKEND (Persistencia F5) ---
   useEffect(() => {
-  const syncCart = async () => {
-    if (user) {
-      try {
-        const { data } = await api.get('/api/store/cart');
-        if (data && data.items) {
-          const savedItems = data.items.map((item: any) => ({
-            id: item.variant_id, 
-            cartItemId: item.id,
-            name: item.fixed_product_name,
-            price: parseFloat(item.unit_price_snapshot),
-            quantity: item.quantity,
-            image: item.fixed_image_snapshot || '', 
-            selectedColor: item.fixed_variant_options?.Color,
-            selectedSize: item.fixed_variant_options?.Talla
-          }));
-          setCart(savedItems);
+
+    if (authLoading) return;
+
+    const syncCart = async () => {
+      if (user) {
+        try {
+          const { data } = await api.get('/api/store/cart');
+          if (data && data.items) {
+            const savedItems = data.items.map((item: any) => ({
+              id: item.variant_id, 
+              cartItemId: item.id,
+              name: item.fixed_product_name,
+              price: parseFloat(item.unit_price_snapshot),
+              quantity: item.quantity,
+              image: item.fixed_image_snapshot || '', 
+              selectedColor: item.fixed_variant_options?.Color,
+              selectedSize: item.fixed_variant_options?.Talla
+            }));
+            setCart(savedItems);
+          }
+        } catch (err) {
+          console.error("Error sincronizando carrito:", err);
         }
-      } catch (err) { console.error("Error sincronizando", err); }
-    }
-  };
-  syncCart();
-}, [user]);
+      } else {
+      
+        setCart([]);
+      }
+    };
+
+    syncCart();
+  }, [user, authLoading]); 
 
   useEffect(() => {
     const fetchCatalog = async () => {
