@@ -10,7 +10,6 @@ import CollectionsGrid from './components/CollectionsGrid';
 import AccountDashboard from './components/AccountDashboard';
 import ProductDetailModal from './components/ProductDetailModal';
 import InfoPage from './components/InfoPage'; 
-
 import api from './lib/api';
 import { useAuth } from './context/AuthContext';
 import { CartItem, Product, Category, ColorOption, Language } from './types';
@@ -234,15 +233,102 @@ const App: React.FC = () => {
     fetchCatalog();
   }, []);
 
-  // ... (Handlers: showToast, handleAuthSuccess, handleLogout, handleCheckoutComplete, commitAddToCart, handleAddToCartRequest, confirmSizeSelection, handleToggleWishlist)
-  const showToast = (message: string, title?: string) => { setToast({ message, title, visible: true }); setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000); };
-  const handleAuthSuccess = () => { setIsAuthModalOpen(false); showToast(t('toast_welcome_sub'), t('toast_welcome')); };
-  const handleLogout = () => { logout(); setLocalWishlist([]); setView('home'); showToast('Has cerrado sesión correctamente', t('toast_info')); };
-  const handleCheckoutComplete = () => { setCart([]); showToast("Pedido realizado con éxito", "Éxito"); };
-  const commitAddToCart = (product: Product, color?: ColorOption, size?: string, quantity: number = 1) => { const colorId = color ? `-${color.name}` : ''; const sizeId = size ? `-${size}` : ''; const cartItemId = `${product.id}${colorId}${sizeId}`; setCart(prev => { const existing = prev.find(item => item.cartItemId === cartItemId); if (existing) { return prev.map(item => item.cartItemId === cartItemId ? { ...item, quantity: item.quantity + quantity } : item); } return [...prev, { ...product, quantity, selectedColor: color, selectedSize: size, cartItemId }]; }); showToast(`${product.name} ${t('toast_added')}`, t('toast_cart')); };
-  const handleAddToCartRequest = (product: Product, color?: ColorOption, size?: string, quantity = 1) => { if (size) { commitAddToCart(product, color, size, quantity); } else if (product.sizes && product.sizes.length > 0) { setSizeModal({ isOpen: true, product, selectedColor: color || null }); } else { commitAddToCart(product, color, undefined, quantity); } };
-  const confirmSizeSelection = (size: string) => { if (sizeModal.product) { commitAddToCart(sizeModal.product, sizeModal.selectedColor || undefined, size, 1); setSizeModal({ isOpen: false, product: null, selectedColor: null }); } };
-  const handleToggleWishlist = (product: Product) => { if (!user) { setAuthMode('login'); setIsAuthModalOpen(true); showToast(t('wishlist_login_required'), t('toast_info')); return; } const exists = localWishlist.find(item => item.id === product.id); if (exists) { setLocalWishlist(prev => prev.filter(item => item.id !== product.id)); showToast(t('wishlist_removed'), t('toast_info')); } else { setLocalWishlist(prev => [...prev, product]); showToast(t('wishlist_added'), t('toast_info')); } };
+  // --- HANDLERS (FUNCIONES DE LA APP) ---
+
+  const showToast = (message: string, title?: string) => { 
+    setToast({ message, title, visible: true }); 
+    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000); 
+  };
+
+  const handleAuthSuccess = () => { 
+    setIsAuthModalOpen(false); 
+    showToast(t('toast_welcome_sub'), t('toast_welcome')); 
+  };
+
+  const handleLogout = () => { 
+    logout(); 
+    setLocalWishlist([]); 
+    setView('home'); 
+    showToast('Has cerrado sesión correctamente', t('toast_info')); 
+  };
+
+  const handleCheckoutComplete = () => { 
+    setCart([]); 
+    showToast("Pedido realizado con éxito", "Éxito"); 
+  };
+
+  const handleAddToCartRequest = (product: Product, color?: ColorOption, size?: string, quantity = 1) => { 
+    if (size) { 
+      commitAddToCart(product, color, size, quantity); 
+    } else if (product.sizes && product.sizes.length > 0) { 
+      setSizeModal({ isOpen: true, product, selectedColor: color || null }); 
+    } else { 
+      commitAddToCart(product, color, undefined, quantity); 
+    } 
+  };
+
+  const confirmSizeSelection = (size: string) => { 
+    if (sizeModal.product) { 
+      commitAddToCart(sizeModal.product, sizeModal.selectedColor || undefined, size, 1); 
+      setSizeModal({ isOpen: false, product: null, selectedColor: null }); 
+    } 
+  };
+
+  const handleToggleWishlist = (product: Product) => { 
+    if (!user) { 
+      setAuthMode('login'); 
+      setIsAuthModalOpen(true); 
+      showToast(t('wishlist_login_required'), t('toast_info')); 
+      return; 
+    } 
+    const exists = localWishlist.find(item => item.id === product.id); 
+    if (exists) { 
+      setLocalWishlist(prev => prev.filter(item => item.id !== product.id)); 
+      showToast(t('wishlist_removed'), t('toast_info')); 
+    } else { 
+      setLocalWishlist(prev => [...prev, product]); 
+      showToast(t('wishlist_added'), t('toast_info')); 
+    } 
+  };
+
+  const commitAddToCart = (product: Product, color?: ColorOption, size?: string, quantity: number = 1) => {
+    const colorIdName = color ? `-${color.name}` : '';
+    const sizeIdName = size ? `-${size}` : '';
+    const cartItemId = `${product.id}${colorIdName}${sizeIdName}`;
+
+    // Identificar el ID del color de forma segura para evitar errores de TS
+    const selectedColorId = (color as any)?.id || (color as any)?.color_id;
+
+    // Buscar la imagen de la variante o usar la del producto por defecto
+    const variantImage = color 
+      ? (product.variants?.find((v: any) => (v.colorId === selectedColorId || v.color_id === selectedColorId))?.image || product.image)
+      : product.image;
+
+    setCart(prev => {
+      const existing = prev.find(item => item.cartItemId === cartItemId);
+      if (existing) {
+        return prev.map(item => 
+          item.cartItemId === cartItemId 
+            ? { ...item, quantity: item.quantity + quantity } 
+            : item
+        );
+      }
+      
+      return [...prev, { 
+        ...product, 
+        image: variantImage, 
+        quantity, 
+        selectedColor: color, 
+        selectedSize: size, 
+        cartItemId 
+      }];
+    });
+
+    showToast(`${product.name} ${t('toast_added')}`, t('toast_cart'));
+  };
+
+
+
 
   const filteredProducts = products.filter(p => {
     const matchesCategory = activeCategory === 'Todos' || p.category === activeCategory;
@@ -317,7 +403,10 @@ const App: React.FC = () => {
       {isCheckoutOpen && (
   <CheckoutModal 
     isOpen={isCheckoutOpen} 
-    onClose={() => setIsCheckoutOpen(false)} 
+    onClose={() => {
+    setIsCheckoutOpen(false); 
+    setIsCartOpen(true);      
+  }} 
     onReturnToShop={() => {setIsCheckoutOpen(false); setView('home');}} 
     total={cart.reduce((a,c) => a + c.price * c.quantity, 0)} 
     onClearCart={handleCheckoutComplete} 

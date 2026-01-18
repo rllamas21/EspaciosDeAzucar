@@ -209,13 +209,13 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
   return (
     <div className="fixed inset-0 z-[90] flex items-start md:items-center justify-center md:p-0 md:p-6">
       <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="relative bg-[#fafaf9] w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] overflow-hidden rounded-none md:rounded shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom-full md:fade-in md:slide-in-from-bottom-4 duration-300">
+      <div className="relative bg-[#fafaf9] w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] overflow-hidden rounded-t-none md:rounded shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom-full duration-300">
         
         {/* COLUMNA IZQUIERDA: DATOS */}
         <div className="flex-1 flex flex-col overflow-hidden bg-white md:border-r border-stone-200">
-            <div className="p-4 pt-4 md:p-6 md:pt-6 border-b border-stone-100 flex justify-between items-center bg-white">
+            <div className="p-3 pt-2 md:p-6 border-b border-stone-100 flex justify-between items-center bg-white">
                <h2 className="font-serif text-xl text-stone-900">Finalizar Compra</h2>
-               <button onClick={onClose} className="md:hidden p-2 -mr-2 text-stone-400 hover:bg-stone-100 rounded-full"><X className="w-6 h-6"/></button>
+               <button onClick={onClose} className="md:hidden p-1 -mr-1 text-stone-400 hover:bg-stone-100 rounded-full"><X className="w-5 h-5"/></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
                 
