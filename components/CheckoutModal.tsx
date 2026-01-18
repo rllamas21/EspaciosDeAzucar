@@ -207,13 +207,13 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
 
   // --- RENDER: FORMULARIO ---
   return (
-    <div className="fixed inset-0 z-[90] flex items-end md:items-center justify-center md:p-6">
+    <div className="fixed inset-0 z-[90] flex items-start md:items-center justify-center md:p-0 md:p-6">
       <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
       <div className="relative bg-[#fafaf9] w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] overflow-hidden rounded-none md:rounded shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom-full md:fade-in md:slide-in-from-bottom-4 duration-300">
         
         {/* COLUMNA IZQUIERDA: DATOS */}
         <div className="flex-1 flex flex-col overflow-hidden bg-white md:border-r border-stone-200">
-            <div className="p-4 pt-12 md:p-6 md:pt-6 border-b border-stone-100 flex justify-between items-center bg-white">
+            <div className="p-4 pt-4 md:p-6 md:pt-6 border-b border-stone-100 flex justify-between items-center bg-white">
                <h2 className="font-serif text-xl text-stone-900">Finalizar Compra</h2>
                <button onClick={onClose} className="md:hidden p-2 -mr-2 text-stone-400 hover:bg-stone-100 rounded-full"><X className="w-6 h-6"/></button>
             </div>
@@ -284,7 +284,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
         {/* COLUMNA DERECHA */}
         <div className="w-full md:w-80 bg-stone-50 flex flex-col border-t md:border-t-0 md:border-l border-stone-200 flex-shrink-0">
            <div className="p-4 md:p-6 border-b border-stone-200 hidden md:flex justify-between items-center"><span className="font-serif text-lg">Resumen</span><button onClick={onClose} className="p-1 hover:bg-stone-200 rounded-full"><X className="w-5 h-5 text-stone-500"/></button></div>
-           <div className="flex-1 p-4 md:p-6 space-y-3 bg-white md:bg-transparent">
+           <div className="flex-1 p-4 py-2 md:p-6 space-y-2 bg-white md:bg-transparent">
               <div className="space-y-1 text-sm text-stone-600">
                   <div className="flex justify-between"><span>Subtotal</span><span>${total.toLocaleString()}</span></div>
                   {method === 'transfer' && (<div className="flex justify-between text-green-700 font-medium"><span>Descuento (10%)</span><span>-${discount.toLocaleString()}</span></div>)}
