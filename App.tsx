@@ -6,10 +6,9 @@ import SizeModal from './components/SizeModal';
 import MenuSidebar from './components/MenuSidebar';
 import AuthModal from './components/AuthModal';
 import CheckoutModal from './components/CheckoutModal'; 
-import CollectionsGrid from './components/CollectionsGrid';
 import AccountDashboard from './components/AccountDashboard';
-import ProductDetailModal from './components/ProductDetailModal';
-import InfoPage from './components/InfoPage'; 
+import InfoPage from './components/InfoPage';
+import ProductDetailModal from './components/ProductDetailModal'; 
 import api from './lib/api';
 import { useAuth } from './context/AuthContext';
 import { CartItem, Product, Category, ColorOption, Language } from './types';
@@ -169,7 +168,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
   }
 };
 
-type ViewState = 'home' | 'collections' | 'account' | 'shipping' | 'returns';
+type ViewState = 'home' | 'account' | 'shipping' | 'returns';
 
 const App: React.FC = () => {
   const { user, logout } = useAuth();
@@ -398,7 +397,36 @@ const App: React.FC = () => {
     }
   }} 
 />
-      <MenuSidebar isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} onSelectCategory={(c) => { setActiveCategory(c); setView('home'); setIsMenuOpen(false); }} language={language} setLanguage={setLanguage} onLoginClick={(mode) => { setAuthMode(mode); setIsAuthModalOpen(true); }} t={t} onNavigate={(v) => { setView(v as ViewState); setIsMenuOpen(false); }} user={user ? { ...user, role: 'client', wishlist: localWishlist, addresses: [], orders: [] } : null} onLogout={handleLogout} onShowMessage={(msg) => showToast(msg, t('toast_info'))} />
+      <MenuSidebar 
+  isOpen={isMenuOpen} 
+  onClose={() => setIsMenuOpen(false)} 
+  onSelectCategory={(c) => { 
+    setActiveCategory(c); 
+    setView('home'); 
+    setIsMenuOpen(false); 
+  }} 
+  availableCategories={dynamicCategories} 
+  language={language} 
+  setLanguage={setLanguage} 
+  onLoginClick={(mode) => { 
+    setAuthMode(mode); 
+    setIsAuthModalOpen(true); 
+  }} 
+  t={t} 
+  onNavigate={(v) => { 
+    setView(v as ViewState); 
+    setIsMenuOpen(false); 
+  }} 
+  user={user ? { 
+    ...user, 
+    role: 'client', 
+    wishlist: localWishlist, 
+    addresses: [], 
+    orders: [] 
+  } : null} 
+  onLogout={handleLogout} 
+  onShowMessage={(msg) => showToast(msg, t('toast_info'))} 
+/>
       {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} initialMode={authMode} onLogin={handleAuthSuccess} />}
       {isCheckoutOpen && (
   <CheckoutModal 
@@ -426,13 +454,23 @@ const App: React.FC = () => {
 
       {/* CONTENIDO PRINCIPAL */}
       <main className="flex-grow">
-        {view === 'account' && user ? (
-          <AccountDashboard user={{...user, role:'client', wishlist:localWishlist, addresses:[], orders:[]}} onLogout={handleLogout} t={t} onRemoveFromWishlist={() => {}} onAddToCart={handleAddToCartRequest} onAddressSave={() => {}} onAddressDelete={() => {}} onNavigate={(v) => setView(v as ViewState)} />
-        ) : view === 'shipping' ? ( <InfoPage type="shipping" onBack={() => setView('home')} t={t} />
-        ) : view === 'returns' ? ( <InfoPage type="returns" onBack={() => setView('home')} t={t} />
-        ) : view === 'collections' ? ( <CollectionsGrid />
-        ) : (
-          <>
+  {view === 'account' && user ? (
+    <AccountDashboard 
+      user={{...user, role:'client', wishlist:localWishlist, addresses:[], orders:[]}} 
+      onLogout={handleLogout} 
+      t={t} 
+      onRemoveFromWishlist={() => {}} 
+      onAddToCart={handleAddToCartRequest} 
+      onAddressSave={() => {}} 
+      onAddressDelete={() => {}} 
+      onNavigate={(v) => setView(v as ViewState)} 
+    />
+  ) : view === 'shipping' ? (
+    <InfoPage type="shipping" onBack={() => setView('home')} t={t} />
+  ) : view === 'returns' ? (
+    <InfoPage type="returns" onBack={() => setView('home')} t={t} />
+  ) : (
+    <>
             {/* HERO RESTAURADO */}
             <section className="relative h-screen w-full flex items-center justify-center overflow-hidden animate-in fade-in duration-1000">
                <div className="absolute inset-0 bg-stone-200">
