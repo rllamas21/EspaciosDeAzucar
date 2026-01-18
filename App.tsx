@@ -295,16 +295,23 @@ const App: React.FC = () => {
     const sizeIdName = size ? `-${size}` : '';
     const cartItemId = `${product.id}${colorIdName}${sizeIdName}`;
 
-    // Identificar el ID del color de forma segura para evitar errores de TS
-    const selectedColorId = (color as any)?.id || (color as any)?.color_id;
+    // 1. Obtener el ID del color de forma flexible (soporta .id o .color_id)
+    const targetColorId = (color as any)?.id || (color as any)?.color_id;
 
-    // Buscar la imagen de la variante o usar la del producto por defecto
-    const variantImage = color 
-      ? (product.variants?.find((v: any) => (v.colorId === selectedColorId || v.color_id === selectedColorId))?.image || product.image)
-      : product.image;
+    // 2. Buscar la variante con comparación de Strings para evitar errores de tipo (number vs string)
+    // Usamos String() para asegurar que "10" sea igual a 10
+    const foundVariant = product.variants?.find((v: any) => 
+      String(v.colorId || v.color_id) === String(targetColorId)
+    );
+
+    // 3. Selección lógica de la imagen:
+    // Si encontramos la variante Y esa variante tiene una imagen propia, la usamos.
+    // De lo contrario (ej: Remera Roja sin foto), usamos la imagen principal del producto.
+    const variantImage = foundVariant?.image ? foundVariant.image : product.image;
 
     setCart(prev => {
       const existing = prev.find(item => item.cartItemId === cartItemId);
+      
       if (existing) {
         return prev.map(item => 
           item.cartItemId === cartItemId 
@@ -313,6 +320,7 @@ const App: React.FC = () => {
         );
       }
       
+      // 4. Guardamos el producto en el carrito con la imagen ya decidida
       return [...prev, { 
         ...product, 
         image: variantImage, 
@@ -325,7 +333,6 @@ const App: React.FC = () => {
 
     showToast(`${product.name} ${t('toast_added')}`, t('toast_cart'));
   };
-
 
 
 
