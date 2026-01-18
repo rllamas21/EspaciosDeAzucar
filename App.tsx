@@ -328,8 +328,8 @@ const commitAddToCart = async (product: Product, color?: ColorOption, size?: str
     catch (err) { console.error("Error DB", err); }
   }
 
-  // 3. Lógica visual: Si la variante tiene imagen, esa. Si no, la del producto.
-  const variantImage = foundVariant?.image ? foundVariant.image : product.image;
+ // (Si no tiene imagen, la dejamos vacía/undefined):
+    const variantImage = foundVariant?.image;
 
   setCart(prev => {
     const cartItemId = foundVariant ? String(foundVariant.id) : `${product.id}-${color?.name || ''}`;
