@@ -81,7 +81,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, cart, onUpdate
       <div className="fixed inset-y-0 right-0 w-full md:w-[480px] bg-white z-[80] shadow-2xl flex flex-col transform transition-transform duration-300 ease-out animate-in slide-in-from-right">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-stone-100">
+        <div className="flex items-center justify-between p-4 md:p-6 border-b border-stone-100">
           <h2 className="text-xl font-serif text-stone-900">{t('cart_title')} ({cart.reduce((a,c) => a + c.quantity, 0)})</h2>
           <button onClick={onClose} className="p-2 hover:bg-stone-50 rounded-full transition-colors">
             <X className="w-5 h-5 text-stone-500" />
@@ -89,7 +89,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, cart, onUpdate
         </div>
 
         {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 md:space-y-8">
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-stone-400 space-y-4">
               <span className="text-4xl opacity-20 font-serif">{t('cart_empty')}</span>
@@ -176,7 +176,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, cart, onUpdate
 
         {/* Footer */}
         {cart.length > 0 && (
-          <div className="bg-stone-50 p-6 space-y-6 border-t border-stone-200">
+          <div className="bg-stone-50 p-4 md:p-6 space-y-4 md:space-y-6 border-t border-stone-200">
             
             {/* --- SECCIÓN CUPÓN (PREGUNTA OCULTA) --- */}
             <div>
@@ -267,8 +267,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, cart, onUpdate
             {/* Botón Checkout EN ESPAÑOL */}
             <button 
               onClick={onCheckout}
-              className="w-full bg-stone-900 text-white h-14 flex items-center justify-between px-6 hover:bg-stone-800 transition-colors group shadow-lg"
-            >
+              className="w-full bg-stone-900 text-white h-12 md:h-14 flex items-center justify-between px-6 hover:bg-stone-800 transition-colors group shadow-lg">
               <span className="font-medium tracking-wide text-xs uppercase">FINALIZAR COMPRA</span>
               <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
             </button>
