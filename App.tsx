@@ -196,6 +196,30 @@ const App: React.FC = () => {
   const [localWishlist, setLocalWishlist] = useState<Product[]>([]);
 
   useEffect(() => {
+  const syncCart = async () => {
+    if (user) {
+      try {
+        const { data } = await api.get('/api/store/cart');
+        if (data && data.items) {
+          const savedItems = data.items.map((item: any) => ({
+            id: item.variant_id, 
+            cartItemId: item.id,
+            name: item.fixed_product_name,
+            price: parseFloat(item.unit_price_snapshot),
+            quantity: item.quantity,
+            image: item.fixed_image_snapshot || '', 
+            selectedColor: item.fixed_variant_options?.Color,
+            selectedSize: item.fixed_variant_options?.Talla
+          }));
+          setCart(savedItems);
+        }
+      } catch (err) { console.error("Error sincronizando", err); }
+    }
+  };
+  syncCart();
+}, [user]);
+
+  useEffect(() => {
     const fetchCatalog = async () => {
       try {
         setLoading(true);
@@ -290,49 +314,34 @@ const App: React.FC = () => {
     } 
   };
 
-  const commitAddToCart = (product: Product, color?: ColorOption, size?: string, quantity: number = 1) => {
-    const colorIdName = color ? `-${color.name}` : '';
-    const sizeIdName = size ? `-${size}` : '';
-    const cartItemId = `${product.id}${colorIdName}${sizeIdName}`;
+const commitAddToCart = async (product: Product, color?: ColorOption, size?: string, quantity: number = 1) => {
+  // 1. Buscamos la variante comparando el NOMBRE del color (Gris Piedra, etc)
+  const foundVariant = product.variants?.find((v: any) => {
+    const matchColor = color ? v.attributes?.Color === color.name : true;
+    const matchSize = size ? (v.attributes?.Talla === size || v.attributes?.Medida === size) : true;
+    return matchColor && matchSize;
+  });
 
-    // 1. Obtener el ID del color de forma flexible (soporta .id o .color_id)
-    const targetColorId = (color as any)?.id || (color as any)?.color_id;
+  // 2. Si hay sesión, guardamos en DB usando el ID de variante real
+  if (user && foundVariant) {
+    try { await api.post('/api/store/cart/items', { variantId: foundVariant.id, quantity }); } 
+    catch (err) { console.error("Error DB", err); }
+  }
 
-    // 2. Buscar la variante con comparación de Strings para evitar errores de tipo (number vs string)
-    // Usamos String() para asegurar que "10" sea igual a 10
-    const foundVariant = product.variants?.find((v: any) => 
-      String(v.colorId || v.color_id) === String(targetColorId)
-    );
+  // 3. Lógica visual: Si la variante tiene imagen, esa. Si no, la del producto.
+  const variantImage = foundVariant?.image ? foundVariant.image : product.image;
 
-    // 3. Selección lógica de la imagen:
-    // Si encontramos la variante Y esa variante tiene una imagen propia, la usamos.
-    // De lo contrario (ej: Remera Roja sin foto), usamos la imagen principal del producto.
-    const variantImage = foundVariant?.image ? foundVariant.image : product.image;
-
-    setCart(prev => {
-      const existing = prev.find(item => item.cartItemId === cartItemId);
-      
-      if (existing) {
-        return prev.map(item => 
-          item.cartItemId === cartItemId 
-            ? { ...item, quantity: item.quantity + quantity } 
-            : item
-        );
-      }
-      
-      // 4. Guardamos el producto en el carrito con la imagen ya decidida
-      return [...prev, { 
-        ...product, 
-        image: variantImage, 
-        quantity, 
-        selectedColor: color, 
-        selectedSize: size, 
-        cartItemId 
-      }];
-    });
-
-    showToast(`${product.name} ${t('toast_added')}`, t('toast_cart'));
-  };
+  setCart(prev => {
+    const cartItemId = foundVariant ? String(foundVariant.id) : `${product.id}-${color?.name || ''}`;
+    const existing = prev.find(item => String(item.cartItemId) === cartItemId);
+    
+    if (existing) {
+      return prev.map(item => String(item.cartItemId) === cartItemId ? { ...item, quantity: item.quantity + quantity } : item);
+    }
+    return [...prev, { ...product, image: variantImage, quantity, selectedColor: color, selectedSize: size, cartItemId }];
+  });
+  showToast(`${product.name} ${t('toast_added')}`, t('toast_cart'));
+};
 
 
 
