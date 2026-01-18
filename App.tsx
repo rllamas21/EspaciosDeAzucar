@@ -184,6 +184,7 @@ const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [isStoreSuspended, setIsStoreSuspended] = useState(false);
   const [activeCategory, setActiveCategory] = useState<Category | 'Todos'>('Todos');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -200,7 +201,10 @@ const App: React.FC = () => {
     const fetchCatalog = async () => {
       try {
         setLoading(true);
+        // Intentamos cargar productos
         const { data } = await api.get('/api/store/products');
+        
+        // Si pasa, mapeamos los productos (Tu código original)
         const mappedProducts: Product[] = data.products.map((p: any) => ({
           id: String(p.id),
           name: p.name,
@@ -210,14 +214,19 @@ const App: React.FC = () => {
           description: p.description || '',      
           variants: p.variants || [],      
           images: p.images || [p.image],  
-          
           colors: p.colors || [],
           sizes: p.sizes || [],
           allAttributes: p.allAttributes
         }));
         setProducts(mappedProducts);
-      } catch (error) {
+        setIsStoreSuspended(false); 
+
+      } catch (error: any) {
         console.error("Error cargando catálogo:", error);
+        
+        if (error.response && error.response.status === 403) {
+           setIsStoreSuspended(true);
+        }
       } finally {
         setLoading(false);
       }
@@ -241,6 +250,45 @@ const App: React.FC = () => {
     return matchesCategory && matchesSearch;
   });
   const dynamicCategories = ['Todos', ...new Set(products.map(p => p.category))];
+
+  // --- BLOQUEO DE SEGURIDAD: PANTALLA DE MANTENIMIENTO ---
+  if (isStoreSuspended) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-6 text-center font-sans">
+        <div className="max-w-md w-full bg-white p-10 rounded-lg shadow-xl border border-stone-100 animate-in fade-in zoom-in duration-500">
+          {/* Icono de Candado / Pausa */}
+          <div className="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          
+          <h1 className="font-serif text-3xl text-stone-900 mb-4">
+            Tienda en Pausa
+          </h1>
+          
+          <p className="text-stone-500 leading-relaxed mb-8">
+            Estamos realizando ajustes en nuestro catálogo para mejorar tu experiencia. 
+            <br className="hidden md:block"/>
+            Por favor, vuelve a intentarlo en unos minutos.
+          </p>
+
+          <div className="flex justify-center gap-4">
+             <button 
+               onClick={() => window.location.reload()}
+               className="px-6 py-2 bg-stone-900 text-white text-sm uppercase tracking-widest hover:bg-stone-800 transition-colors"
+             >
+               Recargar Página
+             </button>
+          </div>
+
+          <div className="text-[10px] text-stone-300 uppercase tracking-widest mt-10">
+            Espacios de Azúcar &copy; 2025
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-stone-50 font-sans selection:bg-stone-200 selection:text-stone-900 flex flex-col">
