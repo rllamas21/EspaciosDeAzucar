@@ -152,7 +152,7 @@ const MenuSidebar: React.FC<MenuSidebarProps> = ({
         <div className="p-8 bg-stone-100 border-t border-stone-200 space-y-8">
           <div className="flex flex-col gap-6">
             <a 
-              href="https://wa.me/5411966515610" 
+              href="https://wa.me/+5411966515610" 
               target="_blank" 
               rel="noopener noreferrer"
               className="flex items-center gap-3 text-stone-800 hover:text-green-700 transition-colors group"
