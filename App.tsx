@@ -204,7 +204,7 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // --- SINCRONIZACIÓN DE CARRITO CON BACKEND (Persistencia F5) ---
+ // --- SINCRONIZACIÓN DE CARRITO CON BACKEND (Persistencia F5) ---
   useEffect(() => {
     if (authLoading) return;
 
@@ -212,17 +212,66 @@ const App: React.FC = () => {
       if (user) {
         try {
           const { data } = await api.get('/api/store/cart');
+          
           if (data && data.items) {
-            const savedItems = data.items.map((item: any) => ({
-              id: item.variant_id, 
-              cartItemId: item.id,
-              name: item.fixed_product_name,
-              price: parseFloat(item.unit_price_snapshot),
-              quantity: item.quantity,
-              image: item.fixed_image_snapshot || '', 
-              selectedColor: item.fixed_variant_options?.Color,
-              selectedSize: item.fixed_variant_options?.Talla
-            }));
+            // 🎨 MAPA MAESTRO DE COLORES (Sincronizado con Backend)
+            // Si agregas un color nuevo en el futuro, agrégalo aquí también.
+            const COLOR_MAP: Record<string, string> = {
+              'negro': '#000000', 'black': '#000000',
+              'blanco': '#FFFFFF', 'white': '#FFFFFF',
+              'rojo': '#EF4444', 'red': '#EF4444',
+              'azul': '#3B82F6', 'blue': '#3B82F6',
+              'verde': '#10B981', 'green': '#10B981',
+              'amarillo': '#F59E0B', 'yellow': '#F59E0B',
+              'gris': '#6B7280', 'grey': '#6B7280',
+              'beige': '#F5F5DC',
+              'rosa': '#EC4899', 'pink': '#EC4899',
+              'marron': '#78350F', 'brown': '#78350F',
+              'naranja': '#F97316', 'orange': '#F97316',
+              'violeta': '#8B5CF6', 'purple': '#8B5CF6',
+              'celeste': '#60A5FA',
+              'turquesa': '#14B8A6',
+              'fucsia': '#D946EF',
+              'dorado': '#FCD34D',
+              'plateado': '#9CA3AF',
+              'carbón': '#1F2937', 'carbon': '#1F2937',
+              'azul marino': '#1E3A8A', 'navy': '#1E3A8A',
+              'gris piedra': '#A8A29E', 'stone': '#A8A29E',
+              'crema': '#FFFDD0',
+              'verde oliva': '#808000',
+              'bordó': '#800000',
+              'lila': '#C8A2C8'
+            };
+
+            const savedItems = data.items.map((item: any) => {
+              // Recuperamos el nombre del color (puede venir como 'Color' o 'color')
+              const colorName = item.fixed_variant_options?.Color || item.fixed_variant_options?.color;
+              
+              // Reconstruimos el objeto visual del color
+              let colorObj = undefined;
+              
+              if (colorName) {
+                 const key = colorName.toLowerCase().trim();
+                 colorObj = { 
+                    name: colorName, 
+                    // Si el color no existe en el mapa, usamos un gris claro (#E5E7EB) para que no se rompa
+                    hex: COLOR_MAP[key] || '#E5E7EB' 
+                 };
+              }
+
+              return {
+                id: String(item.variant_id), 
+                cartItemId: String(item.id), // ID único para borrar/editar
+                name: item.fixed_product_name,
+                price: parseFloat(item.unit_price_snapshot),
+                quantity: item.quantity,
+                image: item.fixed_image_snapshot || '', 
+                selectedColor: colorObj, // ✅ Objeto reconstruido
+                // Recuperamos talla buscando por varias claves comunes
+                selectedSize: item.fixed_variant_options?.Talla || item.fixed_variant_options?.Medida || item.fixed_variant_options?.size || item.fixed_variant_options?.Size
+              };
+            });
+
             setCart(savedItems);
           }
         } catch (err) {
@@ -234,7 +283,7 @@ const App: React.FC = () => {
     };
 
     syncCart();
-  }, [user, authLoading]); 
+  }, [user, authLoading]);
 
   useEffect(() => {
     const fetchCatalog = async () => {
