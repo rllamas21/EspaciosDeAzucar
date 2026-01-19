@@ -5,17 +5,17 @@ import CartDrawer from './components/CartDrawer';
 import SizeModal from './components/SizeModal';
 import MenuSidebar from './components/MenuSidebar';
 import AuthModal from './components/AuthModal';
-import CheckoutModal from './components/CheckoutModal'; 
 import AccountDashboard from './components/AccountDashboard';
 import InfoPage from './components/InfoPage';
 import ProductDetailModal from './components/ProductDetailModal'; 
 import PaymentResult from './pages/PaymentResult';
+import CheckoutPage from './pages/CheckoutPage'; 
 import api from './lib/api';
 import { useAuth } from './context/AuthContext';
 import { CartItem, Product, Category, ColorOption, Language } from './types';
-import { ArrowDown, Check, Loader2, Info } from 'lucide-react'; // Info icon added
+import { ArrowDown, Check, Loader2, Info } from 'lucide-react';
 
-// --- COMPONENTE DE ÍCONOS DE PAGO (Restaurado) ---
+// --- COMPONENTE DE ÍCONOS DE PAGO ---
 const PaymentIcons = () => (
   <div className="flex items-center justify-center gap-4 opacity-70 grayscale hover:grayscale-0 transition-all duration-500">
     <div className="h-6 w-10 bg-stone-200 rounded flex items-center justify-center" title="Visa"><span className="font-bold text-[10px] italic text-stone-600">VISA</span></div>
@@ -36,15 +36,15 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     total: 'Total',
     checkout: 'Finalizar Compra',
     menu_login: 'Iniciar Sesión / Registrarse',
-    menu_guest: 'Invitado', // Faltaba esta
+    menu_guest: 'Invitado',
     menu_home: 'Inicio',
-    menu_categories: 'Categorías', // Faltaba
-    menu_editorial: 'Editorial', // Faltaba
-    menu_explore_collections: 'Explorar Colecciones', // Faltaba
-    menu_furniture: 'Mobiliario', // Ajusté nombres cortos
+    menu_categories: 'Categorías',
+    menu_editorial: 'Editorial',
+    menu_explore_collections: 'Explorar Colecciones',
+    menu_furniture: 'Mobiliario',
     menu_arch: 'Sistemas',
     menu_hardware: 'Herrajes',
-    menu_studio: 'Estudio', // Faltaba
+    menu_studio: 'Estudio',
     menu_projects: 'Proyectos',
     menu_philosophy: 'Filosofía',
     menu_services: 'Servicios',
@@ -61,7 +61,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     wishlist_login_required: 'Inicia sesión para guardar',
     wishlist_added: 'Guardado en favoritos',
     wishlist_removed: 'Eliminado de favoritos',
-    // --- TRADUCCIONES DE CUENTA (NUEVAS) ---
     account_overview: 'Resumen de Cuenta',
     account_orders: 'Mis Pedidos',
     account_addresses: 'Mis Direcciones',
@@ -87,7 +86,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     menu_home: 'Home', 
     menu_categories: 'Categories',
     menu_editorial: 'Editorial',
-    menu_explore_collections: 'Explore Collections',
+    menu_explore_collections: 'Explore Collections', 
     menu_furniture: 'Furniture',
     menu_arch: 'Systems',
     menu_hardware: 'Hardware',
@@ -108,7 +107,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     wishlist_login_required: 'Login required', 
     wishlist_added: 'Saved', 
     wishlist_removed: 'Removed',
-    // ACCOUNT
     account_overview: 'Account Overview',
     account_orders: 'My Orders',
     account_addresses: 'My Addresses',
@@ -155,7 +153,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     wishlist_login_required: 'Login necessário', 
     wishlist_added: 'Salvo', 
     wishlist_removed: 'Removido',
-    // ACCOUNT
     account_overview: 'Resumo da Conta',
     account_orders: 'Meus Pedidos',
     account_addresses: 'Meus Endereços',
@@ -169,7 +166,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
   }
 };
 
-type ViewState = 'home' | 'account' | 'shipping' | 'returns' | 'payment_result';
+type ViewState = 'home' | 'account' | 'shipping' | 'returns' | 'checkout' | 'payment_result'; 
 
 const App: React.FC = () => {
   const { user, logout, loading: authLoading } = useAuth(); 
@@ -178,18 +175,14 @@ const App: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); 
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isStoreSuspended, setIsStoreSuspended] = useState(false);
   const [activeCategory, setActiveCategory] = useState<Category | 'Todos'>('Todos');
-  const [searchQuery, setSearchQuery] = useState('');
-  
+  const [searchQuery, setSearchQuery] = useState('');  
   const [language, setLanguage] = useState<Language>('ES');
   const t = (key: string) => TRANSLATIONS[language][key] || key;
-
   const [toast, setToast] = useState<{message: string, title?: string, visible: boolean}>({ message: '', visible: false });
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [initialModalColor, setInitialModalColor] = useState<ColorOption | undefined>(undefined);
@@ -202,9 +195,9 @@ const App: React.FC = () => {
     const status = params.get('status');
     
     if (status) {
-      // Si hay un status en la URL, forzamos la vista de resultado
+
       setView('payment_result');
-      // Opcional: Limpiamos el carrito si fue exitoso
+
       if (status === 'approved' || status === 'success') {
          setCart([]);
       }
@@ -213,7 +206,6 @@ const App: React.FC = () => {
 
   // --- SINCRONIZACIÓN DE CARRITO CON BACKEND (Persistencia F5) ---
   useEffect(() => {
-
     if (authLoading) return;
 
     const syncCart = async () => {
@@ -237,7 +229,6 @@ const App: React.FC = () => {
           console.error("Error sincronizando carrito:", err);
         }
       } else {
-      
         setCart([]);
       }
     };
@@ -249,10 +240,8 @@ const App: React.FC = () => {
     const fetchCatalog = async () => {
       try {
         setLoading(true);
-        // Intentamos cargar productos
         const { data } = await api.get('/api/store/products');
         
-        // Si pasa, mapeamos los productos (Tu código original)
         const mappedProducts: Product[] = data.products.map((p: any) => ({
           id: String(p.id),
           name: p.name,
@@ -271,7 +260,6 @@ const App: React.FC = () => {
 
       } catch (error: any) {
         console.error("Error cargando catálogo:", error);
-        
         if (error.response && error.response.status === 403) {
            setIsStoreSuspended(true);
         }
@@ -340,36 +328,31 @@ const App: React.FC = () => {
     } 
   };
 
-const commitAddToCart = async (product: Product, color?: ColorOption, size?: string, quantity: number = 1) => {
-  // 1. Buscamos la variante comparando el NOMBRE del color (Gris Piedra, etc)
-  const foundVariant = product.variants?.find((v: any) => {
-    const matchColor = color ? v.attributes?.Color === color.name : true;
-    const matchSize = size ? (v.attributes?.Talla === size || v.attributes?.Medida === size) : true;
-    return matchColor && matchSize;
-  });
+  const commitAddToCart = async (product: Product, color?: ColorOption, size?: string, quantity: number = 1) => {
+    const foundVariant = product.variants?.find((v: any) => {
+      const matchColor = color ? v.attributes?.Color === color.name : true;
+      const matchSize = size ? (v.attributes?.Talla === size || v.attributes?.Medida === size) : true;
+      return matchColor && matchSize;
+    });
 
-  // 2. Si hay sesión, guardamos en DB usando el ID de variante real
-  if (user && foundVariant) {
-    try { await api.post('/api/store/cart/items', { variantId: foundVariant.id, quantity }); } 
-    catch (err) { console.error("Error DB", err); }
-  }
+    if (user && foundVariant) {
+      try { await api.post('/api/store/cart/items', { variantId: foundVariant.id, quantity }); } 
+      catch (err) { console.error("Error DB", err); }
+    }
 
- // (Si no tiene imagen, la dejamos vacía/undefined):
     const variantImage = foundVariant?.image;
 
-  setCart(prev => {
-    const cartItemId = foundVariant ? String(foundVariant.id) : `${product.id}-${color?.name || ''}`;
-    const existing = prev.find(item => String(item.cartItemId) === cartItemId);
-    
-    if (existing) {
-      return prev.map(item => String(item.cartItemId) === cartItemId ? { ...item, quantity: item.quantity + quantity } : item);
-    }
-    return [...prev, { ...product, image: variantImage, quantity, selectedColor: color, selectedSize: size, cartItemId }];
-  });
-  showToast(`${product.name} ${t('toast_added')}`, t('toast_cart'));
-};
-
-
+    setCart(prev => {
+      const cartItemId = foundVariant ? String(foundVariant.id) : `${product.id}-${color?.name || ''}`;
+      const existing = prev.find(item => String(item.cartItemId) === cartItemId);
+      
+      if (existing) {
+        return prev.map(item => String(item.cartItemId) === cartItemId ? { ...item, quantity: item.quantity + quantity } : item);
+      }
+      return [...prev, { ...product, image: variantImage, quantity, selectedColor: color, selectedSize: size, cartItemId }];
+    });
+    showToast(`${product.name} ${t('toast_added')}`, t('toast_cart'));
+  };
 
   const filteredProducts = products.filter(p => {
     const matchesCategory = activeCategory === 'Todos' || p.category === activeCategory;
@@ -378,7 +361,7 @@ const commitAddToCart = async (product: Product, color?: ColorOption, size?: str
   });
   const dynamicCategories = ['Todos', ...new Set(products.map(p => p.category))];
 
-  // 1. Evitar parpadeo: Si está cargando, mostramos pantalla completa de carga
+  // 1. Evitar parpadeo: Si está cargando
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-stone-50 text-stone-400">
@@ -393,20 +376,14 @@ const commitAddToCart = async (product: Product, color?: ColorOption, size?: str
     return (
       <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-6 text-center font-sans">
         <div className="max-w-md w-full bg-white p-10 rounded-lg shadow-xl border border-stone-100 animate-in fade-in zoom-in duration-500">
-          {/* Icono de Candado / Pausa */}
           <div className="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
-          
-          <h1 className="font-serif text-3xl text-stone-900 mb-4">
-            Tienda en Pausa
-          </h1>
-          
+          <h1 className="font-serif text-3xl text-stone-900 mb-4">Tienda en Pausa</h1>
           <p className="text-stone-500 leading-relaxed mb-8">
-            Estamos realizando ajustes en nuestro catálogo para mejorar tu experiencia. 
-            <br className="hidden md:block"/>
+            Estamos realizando ajustes en nuestro catálogo. <br className="hidden md:block"/>
             Por favor, vuelve a intentarlo en unos minutos.
           </p>
         </div>
@@ -417,75 +394,48 @@ const commitAddToCart = async (product: Product, color?: ColorOption, size?: str
   return (
     <div className="min-h-screen bg-stone-50 font-sans selection:bg-stone-200 selection:text-stone-900 flex flex-col">
       <Navbar cartCount={cart.reduce((acc, item) => acc + item.quantity, 0)} onOpenCart={() => setIsCartOpen(true)} onOpenMenu={() => setIsMenuOpen(true)} isMenuOpen={isMenuOpen} onSearch={setSearchQuery} onSearchSubmit={() => {}} language={language} setLanguage={setLanguage} t={t} onNavigate={(v) => { if (v === 'home' || v === 'collections' || v === 'account') { setView(v as ViewState); window.scrollTo({top:0, behavior:'smooth'}); }}} user={user ? { ...user, role: 'client', wishlist: localWishlist, addresses: [], orders: [] } : null} onLoginClick={() => { setAuthMode('login'); setIsAuthModalOpen(true); }} />
+      
+      {/* DRAWER DEL CARRITO */}
       <CartDrawer 
-  isOpen={isCartOpen} 
-  onClose={() => setIsCartOpen(false)} 
-  cart={cart} 
-  onUpdateQuantity={(id, d) => setCart(prev => prev.map(i => i.cartItemId === id ? {...i, quantity: Math.max(0, i.quantity + d)} : i).filter(i => i.quantity > 0))} 
-  onRemoveItem={(id) => setCart(prev => prev.filter(i => i.cartItemId !== id))} 
-  t={t} 
-  onCheckout={() => { 
+        isOpen={isCartOpen} 
+        onClose={() => setIsCartOpen(false)} 
+        cart={cart} 
+        onUpdateQuantity={(id, d) => setCart(prev => prev.map(i => i.cartItemId === id ? {...i, quantity: Math.max(0, i.quantity + d)} : i).filter(i => i.quantity > 0))} 
+        onRemoveItem={(id) => setCart(prev => prev.filter(i => i.cartItemId !== id))} 
+        t={t} 
 
-    if (user) {
+        onCheckout={() => { 
+          if (user) {
+             setIsCartOpen(false); 
+             setView('checkout'); 
+             window.scrollTo(0,0);
+          } else {
+             setIsCartOpen(false);
+             setAuthMode('login');
+             setIsAuthModalOpen(true);
+             showToast("Inicia sesión para finalizar compra", "Cuenta Requerida");
+          }
+        }} 
+      />
 
-       setIsCartOpen(false); 
-       setIsCheckoutOpen(true); 
-    } else {
-
-       setIsCartOpen(false);
-       setAuthMode('login');
-       setIsAuthModalOpen(true);
-       showToast("Inicia sesión para finalizar compra", "Cuenta Requerida");
-    }
-  }} 
-/>
       <MenuSidebar 
-  isOpen={isMenuOpen} 
-  onClose={() => setIsMenuOpen(false)} 
-  onSelectCategory={(c) => { 
-    setActiveCategory(c); 
-    setView('home'); 
-    setIsMenuOpen(false); 
-  }} 
-  availableCategories={dynamicCategories} 
-  language={language} 
-  setLanguage={setLanguage} 
-  onLoginClick={(mode) => { 
-    setAuthMode(mode); 
-    setIsAuthModalOpen(true); 
-  }} 
-  t={t} 
-  onNavigate={(v) => { 
-    setView(v as ViewState); 
-    setIsMenuOpen(false); 
-  }} 
-  user={user ? { 
-    ...user, 
-    role: 'client', 
-    wishlist: localWishlist, 
-    addresses: [], 
-    orders: [] 
-  } : null} 
-  onLogout={handleLogout} 
-  onShowMessage={(msg) => showToast(msg, t('toast_info'))} 
-/>
+        isOpen={isMenuOpen} 
+        onClose={() => setIsMenuOpen(false)} 
+        onSelectCategory={(c) => { setActiveCategory(c); setView('home'); setIsMenuOpen(false); }} 
+        availableCategories={dynamicCategories} 
+        language={language} 
+        setLanguage={setLanguage} 
+        onLoginClick={(mode) => { setAuthMode(mode); setIsAuthModalOpen(true); }} 
+        t={t} 
+        onNavigate={(v) => { setView(v as ViewState); setIsMenuOpen(false); }} 
+        user={user ? { ...user, role: 'client', wishlist: localWishlist, addresses: [], orders: [] } : null} 
+        onLogout={handleLogout} 
+        onShowMessage={(msg) => showToast(msg, t('toast_info'))} 
+      />
+
       {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} initialMode={authMode} onLogin={handleAuthSuccess} />}
-      {isCheckoutOpen && (
-  <CheckoutModal 
-    isOpen={isCheckoutOpen} 
-    onClose={() => {
-    setIsCheckoutOpen(false); 
-    setIsCartOpen(true);      
-  }} 
-    onReturnToShop={() => {setIsCheckoutOpen(false); setView('home');}} 
-    total={cart.reduce((a,c) => a + c.price * c.quantity, 0)} 
-    onClearCart={handleCheckoutComplete} 
-    cart={cart}
-  />
-)}
       {sizeModal.isOpen && <SizeModal isOpen={sizeModal.isOpen} onClose={() => setSizeModal(prev => ({ ...prev, isOpen: false }))} product={sizeModal.product} preSelectedColor={sizeModal.selectedColor} onConfirm={confirmSizeSelection} />}
-      {selectedProduct && ( <ProductDetailModal product={selectedProduct} initialColor={initialModalColor} onClose={() => {setSelectedProduct(null); setInitialModalColor(undefined);}} onAddToCart={handleAddToCartRequest}/>
-)}
+      {selectedProduct && ( <ProductDetailModal product={selectedProduct} initialColor={initialModalColor} onClose={() => {setSelectedProduct(null); setInitialModalColor(undefined);}} onAddToCart={handleAddToCartRequest}/>)}
 
       <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] transition-all duration-500 ease-out transform ${toast.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8 pointer-events-none'}`}>
         <div className="bg-white text-stone-900 pl-4 pr-6 py-3 rounded-full shadow-2xl border border-stone-100 flex items-center gap-4 min-w-[280px]">
@@ -496,88 +446,90 @@ const commitAddToCart = async (product: Product, color?: ColorOption, size?: str
 
       {/* CONTENIDO PRINCIPAL */}
       <main className="flex-grow">
-  {view === 'account' && user ? (
-    <AccountDashboard 
-      user={{...user, role:'client', wishlist:localWishlist, addresses:[], orders:[]}} 
-      onLogout={handleLogout} 
-      t={t} 
-      onRemoveFromWishlist={() => {}} 
-      onAddToCart={handleAddToCartRequest} 
-      onAddressSave={() => {}} 
-      onAddressDelete={() => {}} 
-      onNavigate={(v) => setView(v as ViewState)} 
-    />
-  ) : view === 'shipping' ? (
-    <InfoPage type="shipping" onBack={() => setView('home')} t={t} />
-  ) : view === 'returns' ? (
-    <InfoPage type="returns" onBack={() => setView('home')} t={t} />
-    ) : view === 'payment_result' ? (
-     <PaymentResult />
-  ) : (
-    <>
-            {/* HERO RESTAURADO */}
-            <section className="relative h-screen w-full flex items-center justify-center overflow-hidden animate-in fade-in duration-1000">
-               <div className="absolute inset-0 bg-stone-200">
-                  <img src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=2400&auto=format&fit=crop" alt="Interior Mood" className="w-full h-full object-cover opacity-80 mix-blend-multiply grayscale-[0.2]" />
-                  <div className="absolute inset-0 bg-stone-100/30"></div>
-               </div>
-               <div className="relative z-10 text-center max-w-4xl px-6">
-                 <span className="block text-xs md:text-sm font-medium tracking-[0.3em] uppercase text-stone-900 mb-6">Est. 2025 &mdash; Buenos Aires</span>
-                 <h2 className="font-serif text-5xl md:text-7xl lg:text-8xl text-stone-900 mb-8 leading-[1.1] md:leading-[0.9]">Arquitectura <br className="md:hidden" /><span className="italic mx-2 md:mx-4">y</span> Suavidad</h2>
-                 <p className="max-w-md mx-auto text-stone-800 mb-12 text-sm md:text-base leading-relaxed font-light">Donde la ingeniería arquitectónica encuentra la calidez de los interiores orgánicos.</p>
-                 <div className="flex justify-center">
-                   <button onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })} className="animate-bounce p-3 border border-stone-800 rounded-full hover:bg-stone-900 hover:text-white transition-colors"><ArrowDown className="w-5 h-5" strokeWidth={1} /></button>
-                 </div>
-               </div>
-            </section>
+        {view === 'account' && user ? (
+          <AccountDashboard 
+            user={{...user, role:'client', wishlist:localWishlist, addresses:[], orders:[]}} 
+            onLogout={handleLogout} 
+            t={t} 
+            onRemoveFromWishlist={() => {}} 
+            onAddToCart={handleAddToCartRequest} 
+            onAddressSave={() => {}} 
+            onAddressDelete={() => {}} 
+            onNavigate={(v) => setView(v as ViewState)} 
+          />
+        ) : view === 'shipping' ? (
+          <InfoPage type="shipping" onBack={() => setView('home')} t={t} />
+        ) : view === 'returns' ? (
+          <InfoPage type="returns" onBack={() => setView('home')} t={t} />
 
-            {/* CATALOGO REAL CON ESTADO VACÍO ELEGANTE */}
-            <section id="catalog" className="py-24 px-4 max-w-[1600px] mx-auto min-h-[50vh]">
-              {!loading && products.length > 0 && (
-                <div className="flex flex-wrap justify-center gap-6 mb-16">
-                  {dynamicCategories.map((cat) => (
-                    <button key={cat} onClick={() => setActiveCategory(cat as any)} className={`text-sm uppercase tracking-widest border-b pb-1 transition-colors ${activeCategory === cat ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-400 hover:text-stone-600'}`}>{cat}</button>
-                  ))}
+        ) : view === 'checkout' ? (
+          <CheckoutPage 
+            cart={cart}
+            total={cart.reduce((a,c) => a + c.price * c.quantity, 0)}
+            onReturnToShop={() => setView('home')}
+          />
+        ) : view === 'payment_result' ? (
+           <PaymentResult />
+        ) : (
+          // HOME / CATÁLOGO
+          <>
+             <section className="relative h-screen w-full flex items-center justify-center overflow-hidden animate-in fade-in duration-1000">
+                <div className="absolute inset-0 bg-stone-200">
+                   <img src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=2400&auto=format&fit=crop" alt="Interior Mood" className="w-full h-full object-cover opacity-80 mix-blend-multiply grayscale-[0.2]" />
+                   <div className="absolute inset-0 bg-stone-100/30"></div>
                 </div>
-              )}
-
-              
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
-                  {filteredProducts.length > 0 ? (
-                    filteredProducts.map(p => (
-                      <ProductCard key={p.id} product={p} onAdd={handleAddToCartRequest} isWishlisted={localWishlist.some(i => i.id === p.id)} onToggleWishlist={() => handleToggleWishlist(p)} onOpenDetails={(product, color) => { setSelectedProduct(product); setInitialModalColor(color);}} />
-                    ))
-                  ) : (
-                    // ESTADO VACÍO ELEGANTE
-                    <div className="col-span-full flex flex-col items-center justify-center text-center py-48 px-4 border-2 border-dashed border-stone-200 rounded-lg bg-stone-50/50">
-                      <div className="w-16 h-16 mb-6 text-stone-300"><Info strokeWidth={1} className="w-full h-full" /></div>
-                      <h3 className="font-serif text-2xl text-stone-900 mb-3">{t('no_results_title')}</h3>
-                      <p className="text-stone-500 max-w-md mx-auto mb-8">{t('no_results_text')}</p>
-                    </div>
-                  )}
-                </div>
-    
-            </section>
-
-            {/* SECCIÓN RICA RESTAURADA */}
-            <section className="bg-stone-900 text-stone-50 py-32 px-6">
-              <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-16">
-                 <div className="flex-1 space-y-8 order-2 md:order-1">
-                   <div className="border-l border-stone-700 pl-6">
-                      <h3 className="font-serif text-4xl md:text-5xl mb-6">El Detalle Técnico</h3>
-                      <p className="text-stone-400 font-light leading-relaxed max-w-lg text-lg">En Espacios de Azúcar, creemos que una manilla no es solo funcionalidad—es el apretón de manos de un edificio. Nuestra colección de herrajes está fresada con precisión.</p>
+                <div className="relative z-10 text-center max-w-4xl px-6">
+                   <span className="block text-xs md:text-sm font-medium tracking-[0.3em] uppercase text-stone-900 mb-6">Est. 2025 &mdash; Buenos Aires</span>
+                   <h2 className="font-serif text-5xl md:text-7xl lg:text-8xl text-stone-900 mb-8 leading-[1.1] md:leading-[0.9]">Arquitectura <br className="md:hidden" /><span className="italic mx-2 md:mx-4">y</span> Suavidad</h2>
+                   <p className="max-w-md mx-auto text-stone-800 mb-12 text-sm md:text-base leading-relaxed font-light">Donde la ingeniería arquitectónica encuentra la calidez de los interiores orgánicos.</p>
+                   <div className="flex justify-center">
+                     <button onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })} className="animate-bounce p-3 border border-stone-800 rounded-full hover:bg-stone-900 hover:text-white transition-colors"><ArrowDown className="w-5 h-5" strokeWidth={1} /></button>
                    </div>
+                </div>
+             </section>
+
+             <section id="catalog" className="py-24 px-4 max-w-[1600px] mx-auto min-h-[50vh]">
+               {!loading && products.length > 0 && (
+                 <div className="flex flex-wrap justify-center gap-6 mb-16">
+                   {dynamicCategories.map((cat) => (
+                     <button key={cat} onClick={() => setActiveCategory(cat as any)} className={`text-sm uppercase tracking-widest border-b pb-1 transition-colors ${activeCategory === cat ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-400 hover:text-stone-600'}`}>{cat}</button>
+                   ))}
                  </div>
-                 <div className="flex-1 w-full order-1 md:order-2">
-                   <div className="relative aspect-square md:aspect-[4/3] bg-stone-800 p-2 border border-stone-700"><img src="https://images.unsplash.com/photo-1615873968403-89e068629265?q=80&w=1200&auto=format&fit=crop" alt="Detail" className="object-cover w-full h-full opacity-80" /></div>
-                 </div>
-              </div>
-            </section>
+               )}
+               
+               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
+                 {filteredProducts.length > 0 ? (
+                   filteredProducts.map(p => (
+                     <ProductCard key={p.id} product={p} onAdd={handleAddToCartRequest} isWishlisted={localWishlist.some(i => i.id === p.id)} onToggleWishlist={() => handleToggleWishlist(p)} onOpenDetails={(product, color) => { setSelectedProduct(product); setInitialModalColor(color);}} />
+                   ))
+                 ) : (
+                   <div className="col-span-full flex flex-col items-center justify-center text-center py-48 px-4 border-2 border-dashed border-stone-200 rounded-lg bg-stone-50/50">
+                     <div className="w-16 h-16 mb-6 text-stone-300"><Info strokeWidth={1} className="w-full h-full" /></div>
+                     <h3 className="font-serif text-2xl text-stone-900 mb-3">{t('no_results_title')}</h3>
+                     <p className="text-stone-500 max-w-md mx-auto mb-8">{t('no_results_text')}</p>
+                   </div>
+                 )}
+               </div>
+             </section>
+
+             <section className="bg-stone-900 text-stone-50 py-32 px-6">
+               <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-16">
+                  <div className="flex-1 space-y-8 order-2 md:order-1">
+                    <div className="border-l border-stone-700 pl-6">
+                       <h3 className="font-serif text-4xl md:text-5xl mb-6">El Detalle Técnico</h3>
+                       <p className="text-stone-400 font-light leading-relaxed max-w-lg text-lg">En Espacios de Azúcar, creemos que una manilla no es solo funcionalidad—es el apretón de manos de un edificio. Nuestra colección de herrajes está fresada con precisión.</p>
+                    </div>
+                  </div>
+                  <div className="flex-1 w-full order-1 md:order-2">
+                    <div className="relative aspect-square md:aspect-[4/3] bg-stone-800 p-2 border border-stone-700"><img src="https://images.unsplash.com/photo-1615873968403-89e068629265?q=80&w=1200&auto=format&fit=crop" alt="Detail" className="object-cover w-full h-full opacity-80" /></div>
+                  </div>
+               </div>
+             </section>
           </>
         )}
       </main>
 
-      {/* FOOTER RESTAURADO + CRÉDITO YOBEL */}
+      {/* FOOTER */}
       {view !== 'account' && (
         <footer className="bg-stone-100 py-20 px-6 border-t border-stone-200 mt-auto">
           <div className="max-w-7xl mx-auto flex flex-col items-center justify-center text-center space-y-8">
@@ -590,7 +542,6 @@ const commitAddToCart = async (product: Product, color?: ColorOption, size?: str
               <p className="text-[10px] uppercase tracking-widest text-stone-400 mb-3">Métodos de Pago Aceptados</p>
               <PaymentIcons />
             </div>
-            {/* CRÉDITO ACTUALIZADO */}
             <p className="text-[10px] text-stone-400 pt-4">&copy; 2025 Espacios de Azúcar. Desarrollado por <a href="https://yobelai.com" target="_blank" rel="noopener noreferrer" className="hover:text-stone-900 transition-colors">Yobel.AI</a>.</p>
           </div>
         </footer>

@@ -78,12 +78,17 @@ export interface Order {
 }
 
 export interface Address {
-  id: string;
-  name: string; 
+  id: number;          
+  alias: string;       
+  recipient_name: string; 
   street: string;
+  number: string;     
+  floor_apt?: string;   
   city: string;
-  zip: string;
-  isDefault: boolean;
+  zip_code: string;    
+  province: string;
+  phone: string;
+  is_default: boolean; 
 }
 
 export interface User {
