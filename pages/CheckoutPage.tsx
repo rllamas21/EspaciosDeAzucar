@@ -167,7 +167,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
           </button>
           <div className="flex items-center gap-2 text-stone-900">
             <ShieldCheck className="w-5 h-5 text-green-600" />
-            <span className="font-serif font-bold text-lg hidden sm:block">Checkout Seguro</span>
+            <span className="font-serif font-bold text-lg hidden sm:block">Pago Seguro</span>
           </div>
         </div>
       </header>
@@ -243,7 +243,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
     alt="Mercado Pago" 
     className="h-6 w-auto object-contain" 
   />
-                      <span className="text-xs font-bold uppercase tracking-wider">Mercado Pago</span>
                     </button>
 
                     <button 
