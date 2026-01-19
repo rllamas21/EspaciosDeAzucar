@@ -377,6 +377,7 @@ const App: React.FC = () => {
     } 
   };
 
+
   const commitAddToCart = async (product: Product, color?: ColorOption, size?: string, quantity: number = 1) => {
     const foundVariant = product.variants?.find((v: any) => {
       const matchColor = color ? v.attributes?.Color === color.name : true;
@@ -384,15 +385,27 @@ const App: React.FC = () => {
       return matchColor && matchSize;
     });
 
+    let realDbId: string | null = null;
+
     if (user && foundVariant) {
-      try { await api.post('/api/store/cart/items', { variantId: foundVariant.id, quantity }); } 
+      try { 
+
+         const { data } = await api.post('/api/store/cart/items', { variantId: foundVariant.id, quantity }); 
+         if (data && data.item) {
+             realDbId = String(data.item.id);
+         }
+      } 
       catch (err) { console.error("Error DB", err); }
     }
 
     const variantImage = foundVariant?.image;
 
     setCart(prev => {
-      const cartItemId = foundVariant ? String(foundVariant.id) : `${product.id}-${color?.name || ''}`;
+
+      const cartItemId = realDbId 
+          ? String(realDbId) 
+          : (foundVariant ? String(foundVariant.id) : `${product.id}-${color?.name || ''}`);
+      
       const existing = prev.find(item => String(item.cartItemId) === cartItemId);
       
       if (existing) {
@@ -490,12 +503,8 @@ const App: React.FC = () => {
            }
         }} 
         
-        onRemoveItem={(id) => {
-           setCart(prev => prev.filter(i => i.cartItemId !== id));
-           if (user) {
-              api.delete(`/api/store/cart/items/${id}`).catch(err => console.error("Error borrando:", err));
-           }
-        }} 
+        onRemoveItem={handleRemoveItem} 
+        
         t={t} 
 
         onCheckout={() => { 
