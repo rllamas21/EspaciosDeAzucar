@@ -12,7 +12,7 @@ interface CheckoutPageProps {
 }
 
 type CheckoutStep = 'shipping' | 'payment';
-type PaymentMethodType = 'mercadopago' | 'transfer';
+type PaymentMethodType = 'mercadopago' | 'transfer' | null;
 
 // DATOS BANCARIOS MOCK
 const BANK_DETAILS = {
@@ -31,7 +31,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
   const [showMobileSummary, setShowMobileSummary] = useState(false);
 
   // Estados de Pago
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('mercadopago');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>(null);
   const [loadingOrder, setLoadingOrder] = useState(false);
   
   // Datos tras crear la orden (MP)
@@ -171,7 +171,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
 
         <div className="flex justify-between">
           <span>Envío</span>
-          <span className="text-stone-400 italic">A convenir</span>
+          <span className="text-stone-400 italic">A consultar</span>
         </div>
       </div>
       
@@ -218,7 +218,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
           </button>
           <div className="flex items-center gap-2 text-stone-900">
             <ShieldCheck className="w-5 h-5 text-green-600" />
-            <span className="font-serif font-bold text-lg">Checkout Seguro</span>
+            <span className="font-serif font-bold text-lg">Pago Seguro</span>
           </div>
           {/* Espaciador para centrar en móvil */}
           <div className="w-4 sm:hidden"></div>
