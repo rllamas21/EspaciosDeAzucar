@@ -304,7 +304,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
           </div>
 
           {/* PASO 2: PAGO */}
-          <div className={`bg-white p-6 md:p-8 rounded-lg shadow-sm border border-stone-100 transition-all ${step === 'shipping' ? 'opacity-40 grayscale pointer-events-none' : 'opacity-100 ring-1 ring-stone-900'}`}>
+          <div className={`bg-white p-6 md:p-8 rounded-lg transition-all ${paymentMethod === 'mercadopago' ? '' : 'shadow-sm border border-stone-100'} ${step === 'shipping' ? 'opacity-40 grayscale pointer-events-none' : 'opacity-100 ring-1 ring-stone-900'}`}>
             <div className="flex items-center gap-3 mb-6">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step === 'shipping' ? 'bg-stone-200 text-stone-500' : 'bg-stone-900 text-white'}`}>
                 2
@@ -338,7 +338,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
 
                   {/* OPCIÓN A: MERCADO PAGO */}
                   {paymentMethod === 'mercadopago' && createdOrderId && (
-                    <div className="bg-stone-50 p-1 rounded-lg">
+                    <div className="mt-4 animate-in fade-in">
                       <PaymentBrick 
                         orderTotal={total} 
                         orderId={createdOrderId}

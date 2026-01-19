@@ -24,26 +24,29 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
 
   const initialization = {
     amount: Number(orderTotal),
+    payer: {
+      email: 'test_user_123@testuser.com', // Opcional: Ayuda a pre-llenar si tienes el email del usuario
+    },
   };
 
   const customization = {
     paymentMethods: {
-      // ✅ CORRECCIÓN: Usamos un array vacío [] para desactivar efectivo.
-      // "exclude" no existe en la API de Mercado Pago.
+      // ✅ CORRECCIÓN TÉCNICA:
+      // Eliminé "mercadoPago: 'all'" porque esa propiedad NO existe aquí y rompía la validación de tarjetas.
       ticket: [], 
-      bankTransfer: [], // También desactivamos transferencia DENTRO del Brick (porque ya la tienes afuera manual)
+      bankTransfer: [], 
       creditCard: "all",
       debitCard: "all",
-      mercadoPago: "all",
+      maxInstallments: 12
     },
     visual: {
         style: {
-            theme: 'flat',
+            theme: 'flat', // 'flat' es el más limpio
             customVariables: {
                 textPrimaryColor: '#1c1917',
                 textSecondaryColor: '#57534e', 
                 inputBackgroundColor: '#ffffff',
-                formBackgroundColor: '#ffffff',
+                formBackgroundColor: '#ffffff', // Fondo blanco para fundirse con tu contenedor
                 baseColor: '#1c1917',
                 borderRadius: '6px',
                 successColor: '#16a34a',
@@ -52,8 +55,12 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
             }
         },
         texts: {
-            formTitle: "Pagar con Tarjeta",
-        }
+            // ✅ CORRECCIÓN VISUAL: 
+            // Ponemos el título en null o vacío para que no salga "Pagar con Tarjeta" dentro del brick.
+            // Ya tienes el título "Método de Pago" afuera, así se ve más limpio.
+            formTitle: "default", 
+        },
+        hidePaymentButton: false, 
     },
   };
 
@@ -102,15 +109,14 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
 
   return (
     <div className="animate-in fade-in duration-500 w-full">
-      <div className="opacity-95">
-        <Payment
-          initialization={initialization}
-          customization={customization as any} 
-          onSubmit={onSubmit}
-          onReady={onReady}
-          onError={onError}
-        />
-      </div>
+      {/* Eliminamos opacidad para que se vea nítido */}
+      <Payment
+        initialization={initialization}
+        customization={customization as any} 
+        onSubmit={onSubmit}
+        onReady={onReady}
+        onError={onError}
+      />
     </div>
   );
 };
