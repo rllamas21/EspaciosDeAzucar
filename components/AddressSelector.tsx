@@ -239,7 +239,7 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ onSelect, selectedAdd
                    onChange={e => setNewAddress({...newAddress, province: e.target.value})}
                    required
                 >
-                    <option value="" disabled>Selecciona Provincia</option>
+                    <option value="" disabled hidden>Selecciona Provincia</option>
                     {ARGENTINE_PROVINCES.map(prov => (
                       <option key={prov} value={prov}>{prov}</option>
                     ))}
