@@ -199,7 +199,7 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ onSelect, selectedAdd
                 onChange={e => setNewAddress({...newAddress, street: e.target.value})}
               />
               <input 
-                placeholder="Altura" 
+                placeholder="Altura/Piso" 
                 className="input-delicate"
                 required
                 value={newAddress.number}
