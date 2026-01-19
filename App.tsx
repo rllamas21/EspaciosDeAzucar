@@ -9,6 +9,7 @@ import CheckoutModal from './components/CheckoutModal';
 import AccountDashboard from './components/AccountDashboard';
 import InfoPage from './components/InfoPage';
 import ProductDetailModal from './components/ProductDetailModal'; 
+import PaymentResult from './pages/PaymentResult';
 import api from './lib/api';
 import { useAuth } from './context/AuthContext';
 import { CartItem, Product, Category, ColorOption, Language } from './types';
@@ -168,7 +169,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
   }
 };
 
-type ViewState = 'home' | 'account' | 'shipping' | 'returns';
+type ViewState = 'home' | 'account' | 'shipping' | 'returns' | 'payment_result';
 
 const App: React.FC = () => {
   const { user, logout, loading: authLoading } = useAuth(); 
@@ -194,6 +195,21 @@ const App: React.FC = () => {
   const [initialModalColor, setInitialModalColor] = useState<ColorOption | undefined>(undefined);
   const [sizeModal, setSizeModal] = useState<{ isOpen: boolean; product: Product | null; selectedColor: ColorOption | null; }>({ isOpen: false, product: null, selectedColor: null });
   const [localWishlist, setLocalWishlist] = useState<Product[]>([]);
+
+  // Sensor: Detecta si venimos de Mercado Pago al cargar la página
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    
+    if (status) {
+      // Si hay un status en la URL, forzamos la vista de resultado
+      setView('payment_result');
+      // Opcional: Limpiamos el carrito si fue exitoso
+      if (status === 'approved' || status === 'success') {
+         setCart([]);
+      }
+    }
+  }, []);
 
   // --- SINCRONIZACIÓN DE CARRITO CON BACKEND (Persistencia F5) ---
   useEffect(() => {
@@ -495,6 +511,8 @@ const commitAddToCart = async (product: Product, color?: ColorOption, size?: str
     <InfoPage type="shipping" onBack={() => setView('home')} t={t} />
   ) : view === 'returns' ? (
     <InfoPage type="returns" onBack={() => setView('home')} t={t} />
+    ) : view === 'payment_result' ? (
+     <PaymentResult />
   ) : (
     <>
             {/* HERO RESTAURADO */}
