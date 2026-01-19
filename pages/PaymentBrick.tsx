@@ -12,27 +12,25 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // 1. LEER LA LLAVE DIRECTAMENTE DE LAS VARIABLES DE ENTORNO (VERCEL)
+    // 1. LEER LA LLAVE DIRECTAMENTE DE LAS VARIABLES DE ENTORNO
     const publicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
 
     if (publicKey) {
-      // Inicializamos Mercado Pago con la llave de Vercel
       initMercadoPago(publicKey, { locale: 'es-AR' });
       setReady(true);
     } else {
-      console.error("❌ ERROR CRÍTICO: No se encontró VITE_MP_PUBLIC_KEY en las variables de entorno.");
+      console.error("❌ ERROR CRÍTICO: No se encontró VITE_MP_PUBLIC_KEY");
     }
   }, []);
 
-  // 2. CONFIGURACIÓN (Sin preferenceId para evitar pantalla blanca)
   const initialization = {
     amount: Number(orderTotal),
-    // ¡IMPORTANTE! NO poner preferenceId aquí si usamos Bricks Core
   };
 
+  // 🎨 PERSONALIZACIÓN VISUAL (ESTILO PLANO Y NEGRO)
   const customization = {
     paymentMethods: {
-      ticket: "all",
+      ticket: "exclude", // 🚫 Ocultamos Rapipago/PagoFácil
       bankTransfer: "all",
       creditCard: "all",
       debitCard: "all",
@@ -40,14 +38,28 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
     },
     visual: {
         style: {
-            theme: 'default', 
+            theme: 'flat', // Diseño moderno sin sombras exageradas
+            customVariables: {
+                textPrimaryColor: '#1c1917', // Texto negro suave
+                textSecondaryColor: '#57534e', 
+                inputBackgroundColor: '#ffffff',
+                formBackgroundColor: '#ffffff',
+                baseColor: '#1c1917', // ⚫ BOTÓN NEGRO (Stone-900)
+                borderRadius: '6px',
+                successColor: '#16a34a',
+                warningColor: '#eab308',
+                errorColor: '#dc2626',
+            }
         },
+        texts: {
+            formTitle: "Pagar con Tarjeta",
+        }
     },
   };
 
   const onSubmit = async ({ selectedPaymentMethod, formData }: any) => {
     return new Promise<void>((resolve, reject) => {
-      // Llamada directa a tu Backend
+      // Usamos la URL completa como en tu versión original para asegurar compatibilidad
       fetch("https://yobel-admin-638148538936.us-east1.run.app/api/store/payment/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -62,10 +74,8 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
         resolve();
         
         if (data.status === 'approved') {
-            // REDIRECCIÓN MANUAL: ÉXITO
             window.location.href = `/?status=success&payment_id=${data.id}&order_id=${orderId}`;
         } else {
-            // REDIRECCIÓN MANUAL: FALLO
             window.location.href = `/?status=failure&payment_id=${data.id}`;
         }
       })
@@ -81,10 +91,9 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
   };
 
   const onReady = async () => {
-    // El componente cargó correctamente
+    // Componente listo
   };
 
-  // Si no hay llave, mostramos un spinner o error en consola
   if (!ready) {
     return (
         <div className="flex justify-center p-8">
@@ -93,13 +102,13 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
     );
   }
 
+  // 🧹 Contenedor limpio (sin bordes ni sombras externas, ya que está dentro de un Tab)
   return (
-    <div className="p-4 bg-white rounded-lg shadow-sm border border-stone-200 animate-in fade-in duration-500">
-      <h3 className="text-lg font-serif mb-4 text-stone-700">Pago Seguro con Tarjeta</h3>
+    <div className="animate-in fade-in duration-500 w-full">
       <div className="opacity-95">
         <Payment
           initialization={initialization}
-          customization={customization as any} // 'as any' soluciona el error rojo de TypeScript
+          customization={customization as any} 
           onSubmit={onSubmit}
           onReady={onReady}
           onError={onError}

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, ShoppingBag, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, ShoppingBag, ShieldCheck, Loader2, AlertCircle, Copy, Check, UploadCloud, CreditCard, Building2 } from 'lucide-react';
 import AddressSelector from '../components/AddressSelector';
 import PaymentBrick from '../pages/PaymentBrick';
 import api from '../lib/api';
@@ -12,20 +12,59 @@ interface CheckoutPageProps {
 }
 
 type CheckoutStep = 'shipping' | 'payment';
+type PaymentMethodType = 'mercadopago' | 'transfer';
+
+// DATOS BANCARIOS MOCK (Cámbialos por los reales)
+const BANK_DETAILS = {
+  bank: "Banco Santander",
+  owner: "Espacios de Azúcar S.A.",
+  cbu: "0720000000000000000022",
+  alias: "ESPACIOS.AZUCAR.MP",
+  cuit: "30-12345678-9"
+};
 
 const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop }) => {
   const [step, setStep] = useState<CheckoutStep>('shipping');
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+  
+  // Estados de Pago
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('mercadopago');
   const [loadingOrder, setLoadingOrder] = useState(false);
   
-  // Datos de la orden generada para pasarle al Brick
+  // Datos tras crear la orden (MP)
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
-  const [createdOrderTotal, setCreatedOrderTotal] = useState<number>(0);
   const [clientId, setClientId] = useState<number | string | null>(null);
   
+  // Estados Transferencia
+  const [transferFile, setTransferFile] = useState<File | null>(null);
+  const [isTransferSuccess, setIsTransferSuccess] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
   const [error, setError] = useState<string | null>(null);
 
-  // 1. CREAR LA ORDEN EN EL BACKEND
+  // Lógica de Descuento (10% si es transferencia)
+  const discountAmount = paymentMethod === 'transfer' ? total * 0.10 : 0;
+  const finalTotal = total - discountAmount;
+
+  // Efecto para cuenta regresiva en éxito de transferencia
+  useEffect(() => {
+    if (isTransferSuccess && countdown > 0) {
+      const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (isTransferSuccess && countdown === 0) {
+      onReturnToShop(); // Redirigir al home
+    }
+  }, [isTransferSuccess, countdown, onReturnToShop]);
+
+  // Función para copiar al portapapeles
+  const handleCopy = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  // 1. CREAR LA ORDEN (Común para ambos métodos)
   const handleConfirmShipping = async () => {
     if (!selectedAddress) {
       setError("Por favor selecciona una dirección de envío.");
@@ -36,7 +75,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
     setError(null);
 
     try {
-      // Preparamos los items para el backend (igual que antes)
       const itemsLimpios = cart.map(item => ({
         id: Number(item.id),
         productId: Number(item.id), 
@@ -46,18 +84,15 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
         unit_price: Number(item.price),
         price: Number(item.price),
         currency_id: "ARS",
-        description: item.cartItemId,
         picture_url: item.image,
         selectedColor: item.selectedColor, 
         selectedSize: item.selectedSize
       }));
 
-      // Creamos la orden con la dirección seleccionada
       const orderPayload = {
         shippingAddress: {
-          firstName: selectedAddress.recipient_name.split(' ')[0], // Hack simple para nombre
+          firstName: selectedAddress.recipient_name.split(' ')[0],
           lastName: selectedAddress.recipient_name.split(' ').slice(1).join(' ') || '',
-          dni: '', // Opcional si ya no lo pides o lo sacas del user
           phone: selectedAddress.phone,
           street: selectedAddress.street,
           number: selectedAddress.number,
@@ -65,33 +100,66 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
           zip: selectedAddress.zip_code,
           province: selectedAddress.province
         },
-        billingAddress: {}, // Se asume igual
-        paymentMethod: 'mercadopago',
-        shippingCost: 0, // Aquí podrías calcular envío real si quisieras
-        items: itemsLimpios 
+        billingAddress: {}, 
+        paymentMethod: paymentMethod, // 'mercadopago' o 'transfer'
+        shippingCost: 0, 
+        items: itemsLimpios,
+        total: finalTotal // Enviamos el total con descuento si aplica
       };
 
       const { data } = await api.post('/api/store/checkout', orderPayload);
       
-      // ¡Éxito! Guardamos los datos y avanzamos al pago
       setCreatedOrderId(data.orderId);
-      setCreatedOrderTotal(total); // O data.total si el backend recalcula
       if (data.clientId) setClientId(data.clientId);
       
       setStep('payment');
 
     } catch (err: any) {
       console.error("Error creando orden:", err);
-      setError(err.response?.data?.error || "Error al procesar la orden. Intenta nuevamente.");
+      setError(err.response?.data?.error || "Error al procesar la orden.");
     } finally {
       setLoadingOrder(false);
     }
   };
 
+  // 2. CONFIRMAR TRANSFERENCIA (Manual)
+  const handleConfirmTransfer = () => {
+    if (!transferFile) {
+      alert("Por favor adjunta el comprobante.");
+      return;
+    }
+    // Aquí idealmente subirías la imagen al backend. 
+    // Por ahora simulamos éxito inmediato.
+    setIsTransferSuccess(true);
+  };
+
+  // PANTALLA DE ÉXITO DE TRANSFERENCIA
+  if (isTransferSuccess) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full text-center border border-stone-100 animate-in zoom-in duration-300">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Check className="w-10 h-10 text-green-600" />
+          </div>
+          <h2 className="font-serif text-2xl text-stone-900 mb-2">¡Transferencia Informada!</h2>
+          <p className="text-stone-500 mb-6 text-sm leading-relaxed">
+            Nuestro equipo validará tu comprobante en breve. Te enviaremos la confirmación a tu correo electrónico registrado.
+          </p>
+          <div className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-8">
+            Redirigiendo en {countdown}s...
+          </div>
+          <button onClick={onReturnToShop} className="w-full bg-stone-900 text-white py-3 rounded text-sm font-bold uppercase tracking-wider hover:bg-stone-800">
+            Volver a la Tienda
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-stone-50 font-sans pb-20">
       
-      {/* HEADER SIMPLE (Tipo Shopify) */}
+      {/* HEADER */}
       <header className="bg-white border-b border-stone-200 py-4 px-6 sticky top-0 z-30">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <button onClick={onReturnToShop} className="text-sm font-medium text-stone-500 hover:text-stone-900 flex items-center gap-1 transition-colors">
@@ -106,7 +174,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
 
       <main className="max-w-6xl mx-auto px-4 md:px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* COLUMNA IZQUIERDA: PROCESO (2/3 del ancho) */}
+        {/* COLUMNA IZQUIERDA */}
         <div className="lg:col-span-2 space-y-6">
           
           {/* PASO 1: ENVÍO */}
@@ -118,7 +186,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
               <h2 className="font-serif text-xl text-stone-800">Dirección de Envío</h2>
             </div>
 
-            {/* Selector de Direcciones (Componente Nuevo) */}
             <div className={step === 'payment' ? 'hidden' : 'block'}>
               <AddressSelector 
                 onSelect={(addr) => { setSelectedAddress(addr); setError(null); }} 
@@ -137,64 +204,162 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
                   disabled={loadingOrder || !selectedAddress}
                   className="bg-stone-900 text-white px-8 py-3 rounded hover:bg-stone-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md font-bold text-xs uppercase tracking-widest flex items-center gap-2"
                 >
-                  {loadingOrder ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Continuar al Pago'}
+                  {loadingOrder ? <Loader2 className="w-4 h-4 animate-spin"/> : 'CONTINUAR AL PAGO'}
                 </button>
               </div>
             </div>
 
-            {/* Resumen Compacto (Solo visible cuando ya pasamos al paso 2) */}
             {step === 'payment' && selectedAddress && (
-              <div className="ml-11 text-sm text-stone-600">
-                <p className="font-medium text-stone-900">{selectedAddress.alias} ({selectedAddress.recipient_name})</p>
-                <p>{selectedAddress.street} {selectedAddress.number}, {selectedAddress.city}</p>
-                <button onClick={() => setStep('shipping')} className="text-blue-600 hover:underline mt-1 text-xs font-medium">Cambiar</button>
+              <div className="ml-11 text-sm text-stone-600 flex justify-between items-center">
+                <div>
+                  <p className="font-medium text-stone-900">{selectedAddress.alias} ({selectedAddress.recipient_name})</p>
+                  <p>{selectedAddress.street} {selectedAddress.number}, {selectedAddress.city}</p>
+                </div>
+                <button onClick={() => setStep('shipping')} className="text-stone-400 hover:text-stone-900 underline text-xs">Editar</button>
               </div>
             )}
           </div>
 
           {/* PASO 2: PAGO */}
-          <div className={`bg-white p-6 md:p-8 rounded-lg shadow-sm border border-stone-100 transition-all ${step === 'shipping' ? 'opacity-40 grayscale' : 'opacity-100 ring-1 ring-stone-900'}`}>
+          <div className={`bg-white p-6 md:p-8 rounded-lg shadow-sm border border-stone-100 transition-all ${step === 'shipping' ? 'opacity-40 grayscale pointer-events-none' : 'opacity-100 ring-1 ring-stone-900'}`}>
             <div className="flex items-center gap-3 mb-6">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step === 'shipping' ? 'bg-stone-200 text-stone-500' : 'bg-stone-900 text-white'}`}>
                 2
               </div>
-              <h2 className="font-serif text-xl text-stone-800">Pago</h2>
+              <h2 className="font-serif text-xl text-stone-800">Método de Pago</h2>
             </div>
 
-            {step === 'payment' && createdOrderId ? (
+            {step === 'payment' && (
                <div className="ml-0 md:ml-11 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <p className="text-stone-500 text-sm mb-6">Selecciona tu método de pago preferido. Todas las transacciones son encriptadas.</p>
-                  {/* BRICK DE MERCADO PAGO INTEGRADO */}
-                  <PaymentBrick 
-                     orderTotal={createdOrderTotal}
-                     orderId={createdOrderId}
-                     clientId={clientId || 0}
-                  />
+                  
+                  {/* TABS DE SELECCIÓN */}
+                  <div className="grid grid-cols-2 gap-4 mb-8">
+                    <button 
+                      onClick={() => setPaymentMethod('mercadopago')}
+                      className={`border rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all ${paymentMethod === 'mercadopago' ? 'border-stone-900 bg-stone-50 ring-1 ring-stone-900 text-stone-900' : 'border-stone-200 text-stone-400 hover:border-stone-400'}`}
+                    >
+                      <CreditCard className="w-6 h-6" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Mercado Pago</span>
+                    </button>
+
+                    <button 
+                      onClick={() => setPaymentMethod('transfer')}
+                      className={`border rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all relative overflow-hidden ${paymentMethod === 'transfer' ? 'border-stone-900 bg-stone-50 ring-1 ring-stone-900 text-stone-900' : 'border-stone-200 text-stone-400 hover:border-stone-400'}`}
+                    >
+                      <Building2 className="w-6 h-6" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Transferencia</span>
+                      <div className="absolute top-2 right-2 bg-green-100 text-green-700 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                        -10% OFF
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* OPCIÓN A: MERCADO PAGO */}
+                  {paymentMethod === 'mercadopago' && createdOrderId && (
+                    <div className="bg-stone-50 p-1 rounded-lg">
+                      <PaymentBrick 
+                        orderTotal={total} // MP cobra el total normal
+                        orderId={createdOrderId}
+                        clientId={clientId || 0}
+                      />
+                    </div>
+                  )}
+
+                  {/* OPCIÓN B: TRANSFERENCIA */}
+                  {paymentMethod === 'transfer' && (
+                    <div className="space-y-6">
+                      <div className="bg-stone-50 p-6 rounded border border-stone-200">
+                        <h4 className="font-serif text-lg text-stone-800 mb-4">Datos Bancarios</h4>
+                        
+                        <div className="space-y-4">
+                           {/* CBU */}
+                           <div className="bg-white border border-stone-200 p-3 rounded flex justify-between items-center group">
+                              <div>
+                                <span className="text-[10px] uppercase text-stone-400 font-bold tracking-wider block mb-1">CBU / CVU</span>
+                                <span className="font-mono text-stone-800 text-sm md:text-base">{BANK_DETAILS.cbu}</span>
+                              </div>
+                              <button onClick={() => handleCopy(BANK_DETAILS.cbu, 'cbu')} className="p-2 text-stone-400 hover:text-stone-900 relative">
+                                {copiedField === 'cbu' ? <Check className="w-5 h-5 text-green-600"/> : <Copy className="w-5 h-5"/>}
+                              </button>
+                           </div>
+
+                           {/* ALIAS */}
+                           <div className="bg-white border border-stone-200 p-3 rounded flex justify-between items-center group">
+                              <div>
+                                <span className="text-[10px] uppercase text-stone-400 font-bold tracking-wider block mb-1">Alias</span>
+                                <span className="font-mono text-stone-800 text-base font-bold">{BANK_DETAILS.alias}</span>
+                              </div>
+                              <button onClick={() => handleCopy(BANK_DETAILS.alias, 'alias')} className="p-2 text-stone-400 hover:text-stone-900">
+                                 {copiedField === 'alias' ? <Check className="w-5 h-5 text-green-600"/> : <Copy className="w-5 h-5"/>}
+                              </button>
+                           </div>
+
+                           {/* INFO EXTRA */}
+                           <div className="grid grid-cols-2 gap-4">
+                             <div>
+                               <span className="text-[10px] uppercase text-stone-400 font-bold tracking-wider block mb-1">Banco</span>
+                               <span className="text-sm text-stone-800 font-medium">{BANK_DETAILS.bank}</span>
+                             </div>
+                             <div>
+                               <span className="text-[10px] uppercase text-stone-400 font-bold tracking-wider block mb-1">Titular</span>
+                               <span className="text-sm text-stone-800 font-medium">{BANK_DETAILS.owner}</span>
+                             </div>
+                           </div>
+                        </div>
+                      </div>
+
+                      {/* SUBIR COMPROBANTE */}
+                      <div>
+                        <label className="block text-sm font-medium text-stone-700 mb-2">Adjuntar Comprobante</label>
+                        <div className="relative border-2 border-dashed border-stone-300 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-stone-50 transition-colors cursor-pointer">
+                          <input 
+                            type="file" 
+                            accept="image/*,.pdf"
+                            onChange={(e) => setTransferFile(e.target.files?.[0] || null)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          />
+                          {transferFile ? (
+                             <div className="text-stone-900 flex items-center gap-2">
+                               <Check className="w-5 h-5 text-green-600" />
+                               <span className="font-medium">{transferFile.name}</span>
+                             </div>
+                          ) : (
+                             <>
+                               <UploadCloud className="w-8 h-8 text-stone-400 mb-2" />
+                               <p className="text-sm text-stone-500">Haz clic o arrastra tu comprobante aquí</p>
+                               <p className="text-xs text-stone-400 mt-1">(JPG, PNG, PDF)</p>
+                             </>
+                          )}
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={handleConfirmTransfer}
+                        className="w-full bg-stone-900 text-white py-4 rounded font-bold uppercase tracking-widest hover:bg-stone-800 shadow-lg transition-transform active:scale-[0.98]"
+                      >
+                        Informar Pago de ${(finalTotal).toLocaleString()}
+                      </button>
+                    </div>
+                  )}
+
                </div>
-            ) : (
-              <p className="ml-11 text-stone-400 text-sm italic">Completa el envío para desbloquear el pago.</p>
             )}
           </div>
 
         </div>
 
-        {/* COLUMNA DERECHA: RESUMEN ORDEN (Sticky) */}
+        {/* COLUMNA DERECHA: RESUMEN (Sticky) */}
         <div className="lg:col-span-1">
           <div className="bg-white p-6 rounded-lg shadow-sm border border-stone-100 sticky top-24">
             <h3 className="font-serif text-lg mb-4 flex items-center gap-2">
               <ShoppingBag className="w-4 h-4" /> Resumen del Pedido
             </h3>
             
-            {/* Lista de Items (Scrollable si son muchos) */}
             <div className="max-h-[300px] overflow-y-auto space-y-4 pr-2 mb-6 scrollbar-thin scrollbar-thumb-stone-200">
               {cart.map((item) => (
                 <div key={item.cartItemId} className="flex gap-3 text-sm">
                   <div className="w-12 h-12 bg-stone-100 rounded overflow-hidden flex-shrink-0 relative">
-                     {item.image ? (
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                     ) : (
-                        <div className="w-full h-full bg-stone-200" />
-                     )}
+                     {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
                      <div className="absolute -top-0 -right-0 bg-stone-500 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-bl font-bold">
                        {item.quantity}
                      </div>
@@ -217,15 +382,26 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
                 <span>Subtotal</span>
                 <span>${total.toLocaleString()}</span>
               </div>
+              
+              {/* DESCUENTO TRANSFERENCIA */}
+              {paymentMethod === 'transfer' && (
+                <div className="flex justify-between text-green-700 font-medium animate-in slide-in-from-left-2">
+                  <span>Descuento Transferencia (10%)</span>
+                  <span>-${discountAmount.toLocaleString()}</span>
+                </div>
+              )}
+
               <div className="flex justify-between">
                 <span>Envío</span>
-                <span className="text-stone-400 italic">Gratis</span>
+                <span className="text-stone-400 italic">A convenir</span>
               </div>
             </div>
             
             <div className="border-t border-stone-200 pt-4 mt-4 flex justify-between items-end">
               <span className="font-serif text-lg text-stone-800">Total</span>
-              <span className="font-bold text-2xl text-stone-900">${total.toLocaleString()}</span>
+              <span className="font-bold text-2xl text-stone-900 animate-pulse-once">
+                ${finalTotal.toLocaleString()}
+              </span>
             </div>
           </div>
         </div>
