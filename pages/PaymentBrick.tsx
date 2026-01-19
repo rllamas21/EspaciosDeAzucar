@@ -12,7 +12,6 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // 1. LEER LA LLAVE DIRECTAMENTE DE LAS VARIABLES DE ENTORNO
     const publicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
 
     if (publicKey) {
@@ -27,24 +26,25 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
     amount: Number(orderTotal),
   };
 
-  // 🎨 PERSONALIZACIÓN VISUAL (ESTILO PLANO Y NEGRO)
   const customization = {
     paymentMethods: {
-      ticket: "exclude", // 🚫 Ocultamos Rapipago/PagoFácil
-      bankTransfer: "all",
+      // ✅ CORRECCIÓN: Usamos un array vacío [] para desactivar efectivo.
+      // "exclude" no existe en la API de Mercado Pago.
+      ticket: [], 
+      bankTransfer: [], // También desactivamos transferencia DENTRO del Brick (porque ya la tienes afuera manual)
       creditCard: "all",
       debitCard: "all",
       mercadoPago: "all",
     },
     visual: {
         style: {
-            theme: 'flat', // Diseño moderno sin sombras exageradas
+            theme: 'flat',
             customVariables: {
-                textPrimaryColor: '#1c1917', // Texto negro suave
+                textPrimaryColor: '#1c1917',
                 textSecondaryColor: '#57534e', 
                 inputBackgroundColor: '#ffffff',
                 formBackgroundColor: '#ffffff',
-                baseColor: '#1c1917', // ⚫ BOTÓN NEGRO (Stone-900)
+                baseColor: '#1c1917',
                 borderRadius: '6px',
                 successColor: '#16a34a',
                 warningColor: '#eab308',
@@ -59,7 +59,6 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
 
   const onSubmit = async ({ selectedPaymentMethod, formData }: any) => {
     return new Promise<void>((resolve, reject) => {
-      // Usamos la URL completa como en tu versión original para asegurar compatibilidad
       fetch("https://yobel-admin-638148538936.us-east1.run.app/api/store/payment/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,7 +71,6 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
       .then((response) => response.json())
       .then((data) => {
         resolve();
-        
         if (data.status === 'approved') {
             window.location.href = `/?status=success&payment_id=${data.id}&order_id=${orderId}`;
         } else {
@@ -102,7 +100,6 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
     );
   }
 
-  // 🧹 Contenedor limpio (sin bordes ni sombras externas, ya que está dentro de un Tab)
   return (
     <div className="animate-in fade-in duration-500 w-full">
       <div className="opacity-95">
