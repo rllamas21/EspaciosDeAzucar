@@ -403,6 +403,21 @@ const App: React.FC = () => {
     showToast(`${product.name} ${t('toast_added')}`, t('toast_cart'));
   };
 
+
+  const handleRemoveItem = async (cartItemId: string) => {
+    setCart(prev => prev.filter(i => i.cartItemId !== cartItemId));
+
+    if (user) {
+      try {
+     
+        await api.delete(`/api/store/cart/items/${cartItemId}`);
+        showToast("Producto eliminado", t('toast_info'));
+      } catch (err) {
+        console.error("Error eliminando item de DB:", err);
+      }
+    }
+  };
+
   const filteredProducts = products.filter(p => {
     const matchesCategory = activeCategory === 'Todos' || p.category === activeCategory;
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.category.toLowerCase().includes(searchQuery.toLowerCase());
@@ -466,8 +481,21 @@ const App: React.FC = () => {
         isOpen={isCartOpen} 
         onClose={() => setIsCartOpen(false)} 
         cart={cart} 
-        onUpdateQuantity={(id, d) => setCart(prev => prev.map(i => i.cartItemId === id ? {...i, quantity: Math.max(0, i.quantity + d)} : i).filter(i => i.quantity > 0))} 
-        onRemoveItem={(id) => setCart(prev => prev.filter(i => i.cartItemId !== id))} 
+        onUpdateQuantity={(id, d) => {
+           setCart(prev => prev.map(i => i.cartItemId === id ? {...i, quantity: Math.max(0, i.quantity + d)} : i).filter(i => i.quantity > 0));
+           const item = cart.find(i => i.cartItemId === id);
+           if (user && item) {
+               const newQty = item.quantity + d;
+               if (newQty > 0) api.put(`/api/store/cart/items/${id}`, { quantity: newQty }).catch(e => console.error(e));
+           }
+        }} 
+        
+        onRemoveItem={(id) => {
+           setCart(prev => prev.filter(i => i.cartItemId !== id));
+           if (user) {
+              api.delete(`/api/store/cart/items/${id}`).catch(err => console.error("Error borrando:", err));
+           }
+        }} 
         t={t} 
 
         onCheckout={() => { 
