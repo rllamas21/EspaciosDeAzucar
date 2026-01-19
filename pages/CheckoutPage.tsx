@@ -101,7 +101,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
           province: selectedAddress.province
         },
         billingAddress: {}, 
-        paymentMethod: paymentMethod,
+        paymentMethod: paymentMethod || 'mercadopago',
         shippingCost: 0, 
         items: itemsLimpios,
         total: finalTotal
