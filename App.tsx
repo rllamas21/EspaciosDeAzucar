@@ -393,9 +393,26 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-stone-50 font-sans selection:bg-stone-200 selection:text-stone-900 flex flex-col">
-      <Navbar cartCount={cart.reduce((acc, item) => acc + item.quantity, 0)} onOpenCart={() => setIsCartOpen(true)} onOpenMenu={() => setIsMenuOpen(true)} isMenuOpen={isMenuOpen} onSearch={setSearchQuery} onSearchSubmit={() => {}} language={language} setLanguage={setLanguage} t={t} onNavigate={(v) => { if (v === 'home' || v === 'collections' || v === 'account') { setView(v as ViewState); window.scrollTo({top:0, behavior:'smooth'}); }}} user={user ? { ...user, role: 'client', wishlist: localWishlist, addresses: [], orders: [] } : null} onLoginClick={() => { setAuthMode('login'); setIsAuthModalOpen(true); }} />
       
-      {/* DRAWER DEL CARRITO */}
+      {/* 1. NAVBAR: Solo se muestra si NO estamos en checkout */}
+      {view !== 'checkout' && (
+        <Navbar 
+          cartCount={cart.reduce((acc, item) => acc + item.quantity, 0)} 
+          onOpenCart={() => setIsCartOpen(true)} 
+          onOpenMenu={() => setIsMenuOpen(true)} 
+          isMenuOpen={isMenuOpen} 
+          onSearch={setSearchQuery} 
+          onSearchSubmit={() => {}} 
+          language={language} 
+          setLanguage={setLanguage} 
+          t={t} 
+          onNavigate={(v) => { if (v === 'home' || v === 'collections' || v === 'account') { setView(v as ViewState); window.scrollTo({top:0, behavior:'smooth'}); }}} 
+          user={user ? { ...user, role: 'client', wishlist: localWishlist, addresses: [], orders: [] } : null} 
+          onLoginClick={() => { setAuthMode('login'); setIsAuthModalOpen(true); }} 
+        />
+      )}
+      
+      {/* 2. DRAWER DEL CARRITO (Queda afuera de la condición del Navbar) */}
       <CartDrawer 
         isOpen={isCartOpen} 
         onClose={() => setIsCartOpen(false)} 
@@ -418,6 +435,7 @@ const App: React.FC = () => {
         }} 
       />
 
+      {/* 3. SIDEBAR MENU */}
       <MenuSidebar 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
