@@ -238,7 +238,11 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
                       onClick={() => setPaymentMethod('mercadopago')}
                       className={`border rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all ${paymentMethod === 'mercadopago' ? 'border-stone-900 bg-stone-50 ring-1 ring-stone-900 text-stone-900' : 'border-stone-200 text-stone-400 hover:border-stone-400'}`}
                     >
-                      <CreditCard className="w-6 h-6" />
+                      <img 
+    src="/mercadonegro.png" 
+    alt="Mercado Pago" 
+    className="h-6 w-auto object-contain" 
+  />
                       <span className="text-xs font-bold uppercase tracking-wider">Mercado Pago</span>
                     </button>
 
