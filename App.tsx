@@ -10,6 +10,7 @@ import InfoPage from './components/InfoPage';
 import ProductDetailModal from './components/ProductDetailModal'; 
 import PaymentResult from './pages/PaymentResult';
 import CheckoutPage from './pages/CheckoutPage'; 
+import CheckoutReturn from './pages/CheckoutReturn';
 import api from './lib/api';
 import { useAuth } from './context/AuthContext';
 import { CartItem, Product, Category, ColorOption, Language } from './types';
@@ -166,7 +167,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
   }
 };
 
-type ViewState = 'home' | 'account' | 'shipping' | 'returns' | 'checkout' | 'payment_result'; 
+type ViewState = 'home' | 'account' | 'shipping' | 'returns' | 'checkout' | 'payment_result' | 'checkout_return'; 
 
 const App: React.FC = () => {
   const { user, logout, loading: authLoading } = useAuth(); 
@@ -189,20 +190,7 @@ const App: React.FC = () => {
   const [sizeModal, setSizeModal] = useState<{ isOpen: boolean; product: Product | null; selectedColor: ColorOption | null; }>({ isOpen: false, product: null, selectedColor: null });
   const [localWishlist, setLocalWishlist] = useState<Product[]>([]);
 
-  // Sensor: Detecta si venimos de Mercado Pago al cargar la página
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const status = params.get('status');
-    
-    if (status) {
-
-      setView('payment_result');
-
-      if (status === 'approved' || status === 'success') {
-         setCart([]);
-      }
-    }
-  }, []);
+  
 
  // --- SINCRONIZACIÓN DE CARRITO CON BACKEND (Persistencia F5) ---
   useEffect(() => {
@@ -550,33 +538,35 @@ const App: React.FC = () => {
 
       {/* CONTENIDO PRINCIPAL */}
       <main className="flex-grow">
-        {view === 'account' && user ? (
-          <AccountDashboard 
-            user={{...user, role:'client', wishlist:localWishlist, addresses:[], orders:[]}} 
-            onLogout={handleLogout} 
-            t={t} 
-            onRemoveFromWishlist={() => {}} 
-            onAddToCart={handleAddToCartRequest} 
-            onAddressSave={() => {}} 
-            onAddressDelete={() => {}} 
-            onNavigate={(v) => setView(v as ViewState)} 
-          />
-        ) : view === 'shipping' ? (
-          <InfoPage type="shipping" onBack={() => setView('home')} t={t} />
-        ) : view === 'returns' ? (
-          <InfoPage type="returns" onBack={() => setView('home')} t={t} />
+       {view === 'account' && user ? (
+  <AccountDashboard 
+    user={{...user, role:'client', wishlist:localWishlist, addresses:[], orders:[]}} 
+    onLogout={handleLogout} 
+    t={t} 
+    onRemoveFromWishlist={() => {}} 
+    onAddToCart={handleAddToCartRequest} 
+    onAddressSave={() => {}} 
+    onAddressDelete={() => {}} 
+    onNavigate={(v) => setView(v as ViewState)} 
+  />
+) : view === 'shipping' ? (
+  <InfoPage type="shipping" onBack={() => setView('home')} t={t} />
+) : view === 'returns' ? (
+  <InfoPage type="returns" onBack={() => setView('home')} t={t} />
+) : view === 'checkout' ? (
+  <CheckoutPage 
+    cart={cart}
+    total={cart.reduce((a,c) => a + c.price * c.quantity, 0)}
+    onReturnToShop={() => setView('home')}
+  />
+) : view === 'checkout_return' ? (
+  <CheckoutReturn />
+) : view === 'payment_result' ? (
+  <PaymentResult />
+) : (
+  // HOME / CATÁLOGO
+  <>
 
-        ) : view === 'checkout' ? (
-          <CheckoutPage 
-            cart={cart}
-            total={cart.reduce((a,c) => a + c.price * c.quantity, 0)}
-            onReturnToShop={() => setView('home')}
-          />
-        ) : view === 'payment_result' ? (
-           <PaymentResult />
-        ) : (
-          // HOME / CATÁLOGO
-          <>
              <section className="relative h-screen w-full flex items-center justify-center overflow-hidden animate-in fade-in duration-1000">
                 <div className="absolute inset-0 bg-stone-200">
                    <img src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=2400&auto=format&fit=crop" alt="Interior Mood" className="w-full h-full object-cover opacity-80 mix-blend-multiply grayscale-[0.2]" />
