@@ -41,7 +41,7 @@ const ImageModal: React.FC<{
       
       <div 
         className="relative max-w-4xl max-h-[85vh] w-full flex flex-col items-center justify-center"
-        onClick={(e) => e.stopPropagation()} // Evita cerrar si clickeas la imagen
+        onClick={(e) => e.stopPropagation()} 
       >
         <img 
           src={imageUrl} 
@@ -100,7 +100,7 @@ const WishlistItem: React.FC<{
          </div>
          <div className="flex justify-between items-end gap-2">
             <span className="text-sm font-medium hidden md:block">${item.price.toLocaleString()}</span>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
                <div className="flex items-center border border-stone-200 rounded-full h-7 px-1">
                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-1 hover:text-stone-900 text-stone-400"><Minus className="w-3 h-3" /></button>
                  <span className="text-xs font-medium w-5 text-center">{quantity}</span>
@@ -266,10 +266,10 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                     const BadgeIcon = badge.icon;
                     return (
                       <div key={order.id} className="bg-white border border-stone-200 rounded-sm hover:border-stone-300 transition-colors">
-                         {/* Header Corregido */}
+                         {/* Header Corregido: Estilo normal y serio, sin serif */}
                          <div className="px-6 py-4 flex flex-wrap justify-between items-center gap-4 border-b border-stone-100">
                             <div className="flex items-center gap-3">
-                               <span className="font-serif text-xl text-stone-900">Pedido #{order.id}</span>
+                               <span className="font-bold text-lg text-stone-900">Pedido #{order.id}</span>
                                <span className="text-sm text-stone-400 font-light">{new Date(order.created_at).toLocaleDateString()}</span>
                             </div>
                             <div className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold border flex items-center gap-2 ${badge.color}`}>
@@ -311,8 +311,9 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                                           </div>
                                           {variantText && <p className="text-sm text-stone-500">{variantText}</p>}
                                           
-                                          <p className="text-sm font-medium text-stone-900 mt-1">
-                                             ${Number(item.unit_price).toLocaleString()} <span className="text-stone-400 font-normal text-xs">unidad</span>
+                                          {/* Precio corregido: 1 und - $10 */}
+                                          <p className="text-sm text-stone-500 mt-1">
+                                             1 und - <span className="font-bold text-stone-900">${Number(item.unit_price).toLocaleString()}</span>
                                           </p>
                                        </div>
                                     </div>
@@ -324,7 +325,7 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                          {/* Footer Total */}
                          <div className="px-6 py-4 bg-stone-50/50 flex justify-between items-center border-t border-stone-100">
                             <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Total del Pedido</span>
-                            <span className="font-serif text-xl text-stone-900">${Number(order.total).toLocaleString()}</span>
+                            <span className="font-bold text-xl text-stone-900">${Number(order.total).toLocaleString()}</span>
                          </div>
                       </div>
                     );
