@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ShoppingBag, ShieldCheck, Loader2, AlertCircle, Copy, Check, UploadCloud, Building2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, ShieldCheck, Loader2, AlertCircle, Copy, Check, UploadCloud, Building2, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import AddressSelector from '../components/AddressSelector';
 import api from '../lib/api';
 import { CartItem, Address } from '../types';
@@ -27,6 +27,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
   const [showMobileSummary, setShowMobileSummary] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>(null);
   const [loadingOrder, setLoadingOrder] = useState(false);
+  
   const [isTransferSuccess, setIsTransferSuccess] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -51,6 +52,9 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  // ==========================================
+  // 🔥 LÓGICA UNIFICADA: CREAR Y PAGAR
+  // ==========================================
   const handleFinalProcess = async () => {
     if (!selectedAddress) {
       setError("Por favor selecciona una dirección de envío.");
@@ -66,7 +70,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
 
     try {
       const orderPayload = {
-        shippingAddress: selectedAddress, // Enviamos la dirección seleccionada
+        shippingAddress: selectedAddress,
         paymentMethod: paymentMethod,
         total: finalTotal,
         items: cart.map(item => ({
@@ -77,14 +81,17 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
         }))
       };
 
+      // Llamamos a tu nuevo controlador unificado /api/store/checkout
       const { data } = await api.post('/api/store/checkout', orderPayload);
 
       if (paymentMethod === 'mercadopago' && data.init_point) {
-        // Redirección inmediata a Mercado Pago Pro
+        // 🚀 REDIRECCIÓN DIRECTA A MERCADO PAGO
         window.location.href = data.init_point;
       } else if (paymentMethod === 'transfer') {
+        // Si es transferencia, pasamos al paso de ver datos bancarios
         setStep('payment');
       }
+
     } catch (err: any) {
       console.error("Error en proceso:", err);
       setError(err.response?.data?.error || "Error al procesar la solicitud.");
@@ -99,10 +106,10 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
         {cart.map((item) => (
           <div key={item.cartItemId} className="flex gap-3 text-sm">
             <div className="w-12 h-12 bg-stone-100 rounded overflow-hidden flex-shrink-0 relative">
-              {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
-              <div className="absolute -top-0 -right-0 bg-stone-500 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-bl font-bold">
-                {item.quantity}
-              </div>
+                {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
+                <div className="absolute -top-0 -right-0 bg-stone-500 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-bl font-bold">
+                  {item.quantity}
+                </div>
             </div>
             <div className="flex-1">
               <p className="font-medium text-stone-800 line-clamp-1">{item.name}</p>
@@ -158,45 +165,52 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
 
       <main className="max-w-6xl mx-auto px-4 md:px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
+          
+          {/* SECCIÓN 1: DIRECCIÓN Y MÉTODO */}
           <div className={`bg-white p-6 md:p-8 rounded-lg shadow-sm border border-stone-100 ${step === 'payment' ? 'opacity-50 pointer-events-none' : ''}`}>
             <h2 className="font-serif text-xl text-stone-800 mb-6 flex items-center gap-2">
               <span className="bg-stone-900 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm">1</span>
               Información de Pedido
             </h2>
+            
             <AddressSelector 
               onSelect={(addr) => { setSelectedAddress(addr); setError(null); }} 
               selectedAddressId={selectedAddress?.id}
             />
+
             <div className="mt-8">
               <label className="block text-sm font-bold text-stone-800 mb-4 uppercase tracking-widest">Método de Pago</label>
               <div className="grid grid-cols-2 gap-4">
                 <button 
                   onClick={() => setPaymentMethod('mercadopago')}
-                  className={`border rounded-lg p-4 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'mercadopago' ? 'border-stone-900 bg-stone-50 ring-1 ring-stone-900' : 'border-stone-200 hover:border-stone-400'}`}
+                  className={`border rounded-lg p-4 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'mercadopago' ? 'border-stone-900 bg-stone-50 ring-1 ring-stone-900' : 'border-stone-200'}`}
                 >
-                  <img src="/mercadonegro.png" alt="Mercado Pago" className="h-6 object-contain" />
+                  <img src="/mercadonegro.png" alt="MP" className="h-6" />
                 </button>
                 <button 
                   onClick={() => setPaymentMethod('transfer')}
-                  className={`border rounded-lg p-4 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'transfer' ? 'border-stone-900 bg-stone-50 ring-1 ring-stone-900' : 'border-stone-200 hover:border-stone-400'}`}
+                  className={`border rounded-lg p-4 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'transfer' ? 'border-stone-900 bg-stone-50 ring-1 ring-stone-900' : 'border-stone-200'}`}
                 >
-                  <Building2 className="w-6 h-6 text-stone-600" />
+                  <Building2 className="w-6 h-6" />
                   <span className="text-[10px] font-bold uppercase">Transferencia -10%</span>
                 </button>
               </div>
             </div>
+
             {error && <div className="mt-6 text-red-600 text-sm flex items-center gap-2"><AlertCircle className="w-4 h-4"/>{error}</div>}
+
             <div className="mt-8 flex justify-end">
               <button 
                 onClick={handleFinalProcess}
                 disabled={loadingOrder || !selectedAddress || !paymentMethod}
-                className="bg-stone-900 text-white px-10 py-4 rounded font-bold text-xs tracking-widest hover:bg-stone-800 disabled:opacity-50 w-full md:w-auto flex items-center justify-center gap-2 transition-all"
+                className="bg-stone-900 text-white px-10 py-4 rounded font-bold text-xs tracking-widest hover:bg-stone-800 disabled:opacity-50 w-full md:w-auto flex items-center justify-center gap-2"
               >
                 {loadingOrder ? <Loader2 className="w-4 h-4 animate-spin"/> : paymentMethod === 'mercadopago' ? 'PAGAR AHORA' : 'VER DATOS BANCARIOS'}
               </button>
             </div>
           </div>
 
+          {/* SECCIÓN 2: DATOS DE TRANSFERENCIA (SOLO SI ELIGE TRANSFERENCIA) */}
           {step === 'payment' && paymentMethod === 'transfer' && (
             <div className="bg-white p-6 md:p-8 rounded-lg shadow-sm border border-stone-100 animate-in fade-in slide-in-from-bottom-4">
               <h2 className="font-serif text-xl text-stone-800 mb-6 flex items-center gap-2">
@@ -204,28 +218,31 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
                 Finalizar Transferencia
               </h2>
               <div className="bg-stone-50 p-6 rounded border border-stone-200 space-y-4">
-                <div className="flex justify-between items-center bg-white p-3 rounded border">
-                  <div><span className="text-[10px] font-bold block text-stone-400 uppercase">ALIAS</span><span className="font-mono">{BANK_DETAILS.alias}</span></div>
-                  <button onClick={() => handleCopy(BANK_DETAILS.alias, 'alias')}><Copy className="w-4 h-4 text-stone-400 hover:text-stone-900"/></button>
-                </div>
-                <div className="flex justify-between items-center bg-white p-3 rounded border">
-                  <div><span className="text-[10px] font-bold block text-stone-400 uppercase">CBU</span><span className="font-mono text-xs">{BANK_DETAILS.cbu}</span></div>
-                  <button onClick={() => handleCopy(BANK_DETAILS.cbu, 'cbu')}><Copy className="w-4 h-4 text-stone-400 hover:text-stone-900"/></button>
-                </div>
+                 <div className="flex justify-between items-center bg-white p-3 rounded border">
+                   <div><span className="text-[10px] font-bold block text-stone-400">ALIAS</span><span className="font-mono">{BANK_DETAILS.alias}</span></div>
+                   <button onClick={() => handleCopy(BANK_DETAILS.alias, 'alias')}><Copy className="w-4 h-4"/></button>
+                 </div>
+                 <div className="flex justify-between items-center bg-white p-3 rounded border">
+                   <div><span className="text-[10px] font-bold block text-stone-400">CBU</span><span className="font-mono text-xs">{BANK_DETAILS.cbu}</span></div>
+                   <button onClick={() => handleCopy(BANK_DETAILS.cbu, 'cbu')}><Copy className="w-4 h-4"/></button>
+                 </div>
               </div>
+
               <div className="mt-6">
-                <label className="block text-sm font-medium mb-2 text-stone-700">Adjuntar Comprobante</label>
-                <div className="border-2 border-dashed border-stone-300 p-6 rounded-lg text-center relative cursor-pointer hover:bg-stone-50 transition-all">
+                <label className="block text-sm font-medium mb-2">Adjuntar Comprobante</label>
+                <div className="border-2 border-dashed border-stone-300 p-6 rounded-lg text-center relative cursor-pointer hover:bg-stone-50">
                   <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => setTransferFile(e.target.files?.[0] || null)} />
-                  {transferFile ? <div className="flex items-center justify-center gap-2 text-green-600"><Check className="w-4 h-4"/>{transferFile.name}</div> : <div className="flex flex-col items-center gap-2"><UploadCloud className="w-6 h-6 text-stone-300"/><p className="text-xs text-stone-400">Haz clic aquí para subir el archivo</p></div>}
+                  {transferFile ? <div className="flex items-center justify-center gap-2 text-green-600"><Check/>{transferFile.name}</div> : <p className="text-xs text-stone-400">Haz clic aquí para subir el archivo</p>}
                 </div>
               </div>
-              <button onClick={() => setIsTransferSuccess(true)} className="w-full mt-6 bg-stone-900 text-white py-4 rounded font-bold text-xs tracking-widest hover:bg-stone-800 transition-all">INFORMAR PAGO</button>
+
+              <button onClick={() => setIsTransferSuccess(true)} className="w-full mt-6 bg-stone-900 text-white py-4 rounded font-bold text-xs tracking-widest">INFORMAR PAGO</button>
             </div>
           )}
         </div>
 
-        <div className="hidden lg:block lg:col-span-1">
+        {/* COLUMNA DERECHA: RESUMEN */}
+        <div className="lg:col-span-1">
           <div className="bg-white p-6 rounded-lg shadow-sm border border-stone-100 sticky top-24">
             <h3 className="font-serif text-lg mb-4 flex items-center gap-2"><ShoppingBag className="w-4 h-4" /> Resumen</h3>
             <OrderSummaryContent />
