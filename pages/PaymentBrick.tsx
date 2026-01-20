@@ -31,22 +31,18 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
 
   const customization = {
     paymentMethods: {
-      // ✅ CORRECCIÓN TÉCNICA:
-      // Eliminé "mercadoPago: 'all'" porque esa propiedad NO existe aquí y rompía la validación de tarjetas.
-      ticket: [], 
-      bankTransfer: [], 
       creditCard: "all",
       debitCard: "all",
       maxInstallments: 12
     },
     visual: {
         style: {
-            theme: 'flat', // 'flat' es el más limpio
+            theme: 'flat',
             customVariables: {
                 textPrimaryColor: '#1c1917',
                 textSecondaryColor: '#57534e', 
                 inputBackgroundColor: '#ffffff',
-                formBackgroundColor: '#ffffff', // Fondo blanco para fundirse con tu contenedor
+                formBackgroundColor: '#ffffff',
                 baseColor: '#1c1917',
                 borderRadius: '6px',
                 successColor: '#16a34a',
@@ -55,9 +51,6 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
             }
         },
         texts: {
-            // ✅ CORRECCIÓN VISUAL: 
-            // Ponemos el título en null o vacío para que no salga "Pagar con Tarjeta" dentro del brick.
-            // Ya tienes el título "Método de Pago" afuera, así se ve más limpio.
             formTitle: "default", 
         },
         hidePaymentButton: false, 
