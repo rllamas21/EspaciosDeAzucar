@@ -133,25 +133,22 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({
   };
 
   const handleEditAddress = (addr: Address) => {
-    // Mapeamos para que el form entienda los datos existentes
-    setEditingAddress({
-      id: addr.id,
-      alias: addr.alias,
-      recipient_name: addr.recipient_name,
-      dni: addr.dni || '',
-      phone: addr.phone,
-      street: addr.street,
-      number: addr.number,
-      // Si usabas floor_apt unido, aquí podrías intentar separarlo o dejarlo en uno de los dos campos
-      floor: addr.floor_apt || '', 
-      apartment: '', 
-      city: addr.city,
-      zip_code: addr.zip_code,
-      province: addr.province,
-      is_default: addr.is_default
-    });
-    setIsAddressFormOpen(true);
-  };
+  setEditingAddress({
+    id: addr.id,
+    alias: addr.alias,
+    recipient_name: addr.recipient_name,
+    dni: addr.dni || '',
+    phone: addr.phone,
+    street: addr.street,
+    number: addr.number,
+    floor_apt: addr.floor_apt || '', 
+    city: addr.city,
+    zip_code: addr.zip_code,
+    province: addr.province,
+    is_default: addr.is_default
+  });
+  setIsAddressFormOpen(true);
+};
 
   const handleDeleteAddress = async (id: number) => {
     if(!confirm("¿Eliminar esta dirección?")) return;
@@ -250,14 +247,15 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({
 
             <div className="grid grid-cols-3 gap-4">
                <div className="flex gap-2">
-                  <div className="space-y-1 w-1/2">
-                    <label className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Piso</label>
-                    <input className="input-delicate" value={editingAddress.floor} onChange={e => setEditingAddress({...editingAddress, floor: e.target.value})} />
-                  </div>
-                  <div className="space-y-1 w-1/2">
-                    <label className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Depto</label>
-                    <input className="input-delicate" value={editingAddress.apartment} onChange={e => setEditingAddress({...editingAddress, apartment: e.target.value})} />
-                  </div>
+<div className="space-y-1">
+   <label className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Piso / Depto</label>
+   <input 
+      className="input-delicate" 
+      placeholder="Ej: 1B" 
+      value={editingAddress.floor_apt} 
+      onChange={e => setEditingAddress({...editingAddress, floor_apt: e.target.value})} 
+   />
+</div>
                </div>
                <div className="space-y-1">
                  <label className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Ciudad</label>
