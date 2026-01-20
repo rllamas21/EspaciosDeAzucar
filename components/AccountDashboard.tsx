@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User, Package, MapPin, Heart, LogOut, ChevronRight, User as UserIcon, Trash2, Plus, Minus, ArrowLeft, Loader2, CheckCircle, Clock, XCircle, AlertTriangle, ChevronLeft } from 'lucide-react';
+import { User, Package, MapPin, Heart, LogOut, ChevronRight, User as UserIcon, Trash2, Plus, Minus, ArrowLeft, Loader2, CheckCircle, Clock, XCircle, AlertTriangle, ChevronLeft, Star } from 'lucide-react';
 import { Product, User as UserType, Address } from '../types';
 import api from '../lib/api';
 
@@ -13,12 +13,33 @@ interface AccountDashboardProps {
   t: (key: string) => string;
   onRemoveFromWishlist: (productId: string) => void;
   onAddToCart: (product: Product, color?: any, quantity?: number) => void;
-  onAddressSave?: (address: Address) => void;
-  onAddressDelete?: (id: string) => void;
   onNavigate?: (view: 'home') => void;
 }
 
 type Tab = 'overview' | 'orders' | 'addresses' | 'wishlist';
+
+// --- MODAL DE CONFIRMACIÓN ---
+const ConfirmModal: React.FC<{
+  isOpen: boolean;
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}> = ({ isOpen, title, message, onConfirm, onCancel }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white p-6 rounded-sm shadow-xl max-w-sm w-full border border-stone-100">
+        <h3 className="font-serif text-xl mb-2 text-stone-900">{title}</h3>
+        <p className="text-stone-500 text-sm mb-6">{message}</p>
+        <div className="flex justify-end gap-3">
+          <button onClick={onCancel} className="px-4 py-2 text-xs font-bold uppercase text-stone-500 hover:text-stone-900">Cancelar</button>
+          <button onClick={onConfirm} className="px-4 py-2 bg-red-600 text-white text-xs font-bold uppercase hover:bg-red-700 rounded-sm shadow-sm">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- ITEM WISHLIST ---
 const WishlistItem: React.FC<{
@@ -74,7 +95,10 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
   const [editingAddress, setEditingAddress] = useState<any>(null);
   const [savingAddress, setSavingAddress] = useState(false);
 
-  // PAGINACIÓN PEDIDOS
+  // Delete Confirmation State
+  const [addressToDelete, setAddressToDelete] = useState<number | null>(null);
+
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const ORDERS_PER_PAGE = 5;
 
@@ -110,16 +134,31 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
     setIsAddressFormOpen(true);
   };
 
-  const handleDeleteAddress = async (id: number) => {
-    if(!confirm("¿Eliminar esta dirección?")) return;
-    try { await api.delete(`/api/store/addresses/${id}`); fetchAddresses(); } catch (err) { console.error(err); }
+  const confirmDeleteAddress = async () => {
+    if (addressToDelete === null) return;
+    try { 
+      await api.delete(`/api/store/addresses/${addressToDelete}`); 
+      fetchAddresses(); 
+    } catch (err) { console.error(err); } 
+    finally { setAddressToDelete(null); }
+  };
+
+  const handleSetDefault = async (addr: Address) => {
+    try {
+       // Enviamos la misma dirección pero con is_default = true
+       // El backend se encarga de quitarle el default a las demás
+       await api.post('/api/store/addresses', { ...addr, is_default: true, floor_apt: addr.floor_apt });
+       fetchAddresses();
+    } catch (err) { console.error(err); }
   };
 
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingAddress(true);
     try {
-      const payload = { ...editingAddress, is_default: addresses.length === 0 ? true : editingAddress.is_default };
+      // Si es la primera dirección, forzamos default true
+      const isFirst = addresses.length === 0;
+      const payload = { ...editingAddress, is_default: isFirst ? true : editingAddress.is_default };
       await api.post('/api/store/addresses', payload);
       setIsAddressFormOpen(false);
       fetchAddresses();
@@ -131,7 +170,6 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
     if (paymentStatus === 'failed' || status === 'cancelled') return { label: 'Cancelado', color: 'text-red-600 bg-red-50 border-red-100', icon: XCircle };
     if (status === 'shipped') return { label: 'En Camino', color: 'text-blue-600 bg-blue-50 border-blue-100', icon: Package };
     if (status === 'delivered') return { label: 'Entregado', color: 'text-stone-600 bg-stone-100 border-stone-200', icon: CheckCircle };
-    // Default Paid
     return { label: 'En Preparación', color: 'text-green-700 bg-green-50 border-green-100', icon: CheckCircle };
   };
 
@@ -169,7 +207,6 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'orders':
-        // Lógica de Paginación
         const indexOfLastOrder = currentPage * ORDERS_PER_PAGE;
         const indexOfFirstOrder = indexOfLastOrder - ORDERS_PER_PAGE;
         const currentOrders = orders.slice(indexOfFirstOrder, indexOfLastOrder);
@@ -178,7 +215,6 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
         return (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <h3 className="font-serif text-2xl text-stone-900 mb-6">{t('account_orders')}</h3>
-            
             {loadingOrders ? (
                <div className="space-y-4">{[1,2].map(i => <div key={i} className="h-40 bg-stone-100 rounded-sm animate-pulse" />)}</div>
             ) : orders.length === 0 ? (
@@ -194,7 +230,6 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                     const BadgeIcon = badge.icon;
                     return (
                       <div key={order.id} className="bg-white border border-stone-200 rounded-sm hover:border-stone-300 transition-colors">
-                         {/* Header Simplificado y Alineado */}
                          <div className="px-6 py-4 flex flex-wrap justify-between items-center gap-4 border-b border-stone-100">
                             <div className="flex items-baseline gap-3">
                                <span className="font-serif text-lg font-bold text-stone-900">Pedido #{order.id}</span>
@@ -204,14 +239,11 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                                <BadgeIcon className="w-3 h-3" /> {badge.label}
                             </div>
                          </div>
-
-                         {/* Items Limpios */}
                          <div className="p-6 flex flex-col gap-4">
                             {order.items.map((item: any, idx: number) => {
                                let opts: any = {};
                                try { opts = typeof item.variant_options === 'string' ? JSON.parse(item.variant_options) : item.variant_options; } catch(e){}
                                const variantText = [opts.Color, opts.Talla, opts.Medida].filter(Boolean).join(' / ');
-
                                return (
                                  <div key={idx} className="flex items-center gap-4">
                                     <div className="w-12 h-12 bg-stone-50 border border-stone-100 rounded-sm flex items-center justify-center text-stone-300 flex-shrink-0">
@@ -232,8 +264,6 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                                )
                             })}
                          </div>
-
-                         {/* Footer Total */}
                          <div className="px-6 py-4 bg-stone-50/50 flex justify-between items-center border-t border-stone-100">
                             <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Total del Pedido</span>
                             <span className="font-serif text-xl text-stone-900">${Number(order.total).toLocaleString()}</span>
@@ -241,25 +271,11 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                       </div>
                     );
                  })}
-
-                 {/* Controles de Paginación */}
                  {totalPages > 1 && (
                     <div className="flex justify-center items-center gap-4 pt-4">
-                       <button 
-                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                         disabled={currentPage === 1}
-                         className="p-2 border border-stone-200 rounded-full hover:bg-stone-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                       >
-                          <ChevronLeft className="w-4 h-4" />
-                       </button>
+                       <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 border border-stone-200 rounded-full hover:bg-stone-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"><ChevronLeft className="w-4 h-4" /></button>
                        <span className="text-sm font-medium text-stone-500">Página {currentPage} de {totalPages}</span>
-                       <button 
-                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                         disabled={currentPage === totalPages}
-                         className="p-2 border border-stone-200 rounded-full hover:bg-stone-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                       >
-                          <ChevronRight className="w-4 h-4" />
-                       </button>
+                       <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 border border-stone-200 rounded-full hover:bg-stone-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"><ChevronRight className="w-4 h-4" /></button>
                     </div>
                  )}
                </div>
@@ -274,17 +290,28 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                <>
                  <div className="flex justify-between items-center mb-6">
                     <h3 className="font-serif text-2xl text-stone-900">{t('account_addresses')}</h3>
-                    <button onClick={handleNewAddress} className="text-xs uppercase tracking-widest text-stone-900 border-b border-stone-900 pb-0.5 hover:opacity-70 transition-opacity">
-                      + Nueva Dirección
-                    </button>
+                    <button onClick={handleNewAddress} className="text-xs uppercase tracking-widest text-stone-900 border-b border-stone-900 pb-0.5 hover:opacity-70 transition-opacity">+ Nueva Dirección</button>
                  </div>
                  {loadingAddresses ? <div className="text-center py-8"><Loader2 className="w-6 h-6 animate-spin mx-auto text-stone-400"/></div> : 
                  addresses.length === 0 ? <div className="text-center py-12 border border-dashed border-stone-200 bg-stone-50"><MapPin className="w-8 h-8 text-stone-300 mx-auto mb-2" /><p className="text-stone-500 text-sm">No tienes direcciones guardadas.</p></div> : 
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    {addresses.map((addr) => (
                      <div key={addr.id} className={`p-6 border ${addr.is_default ? 'border-stone-800 bg-stone-50' : 'border-stone-200 bg-white'} rounded-sm relative group transition-all hover:shadow-md`}>
-                        {addr.is_default && <span className="absolute top-4 right-4 text-[9px] uppercase tracking-widest bg-stone-900 text-white px-2 py-1 rounded-sm">Default</span>}
-                        <div className="flex items-center gap-2 mb-3"><MapPin className="w-4 h-4 text-stone-400" /><h4 className="font-bold text-sm uppercase tracking-wide">{addr.alias}</h4></div>
+                        {addr.is_default && <span className="absolute top-4 right-4 text-[9px] uppercase tracking-widest bg-stone-900 text-white px-2 py-1 rounded-sm">Principal</span>}
+                        
+                        <div className="flex justify-between items-start mb-3">
+                           <div className="flex items-center gap-2">
+                              <MapPin className="w-4 h-4 text-stone-400" />
+                              <h4 className="font-bold text-sm uppercase tracking-wide">{addr.alias}</h4>
+                           </div>
+                           {/* Botón Favorito */}
+                           {!addr.is_default && (
+                              <button onClick={() => handleSetDefault(addr)} className="text-stone-300 hover:text-yellow-500 transition-colors" title="Marcar como Principal">
+                                 <Star className="w-4 h-4" />
+                              </button>
+                           )}
+                        </div>
+                        
                         <div className="text-sm text-stone-600 space-y-1 mb-6 font-light pl-6 border-l-2 border-stone-100">
                            <p className="font-medium text-stone-900">{addr.recipient_name}</p>
                            <p>DNI: {addr.dni || '-'}</p>
@@ -294,7 +321,7 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                         </div>
                         <div className="flex gap-4 pl-6">
                            <button onClick={() => handleEditAddress(addr)} className="text-xs font-bold uppercase text-stone-900 hover:text-stone-600">Editar</button>
-                           <button onClick={() => handleDeleteAddress(addr.id)} className="text-xs font-bold uppercase text-stone-400 hover:text-red-600">Eliminar</button>
+                           <button onClick={() => setAddressToDelete(addr.id)} className="text-xs font-bold uppercase text-stone-400 hover:text-red-600">Eliminar</button>
                         </div>
                      </div>
                    ))}
@@ -374,9 +401,20 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                <button onClick={onLogout} className="flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase tracking-widest text-stone-400 hover:text-red-700 hover:bg-red-50 transition-colors rounded-sm w-full text-left"><LogOut className="w-4 h-4" />{t('account_logout')}</button>
              </nav>
           </aside>
-          <main className="flex-1 min-h-[500px]">{renderTabContent()}</main>
+          <main className="flex-1 min-h-[500px]">
+             {renderTabContent()}
+          </main>
         </div>
       </div>
+
+      {/* Modal de Confirmación Global */}
+      <ConfirmModal 
+        isOpen={addressToDelete !== null}
+        title="Eliminar Dirección"
+        message="¿Estás seguro que deseas eliminar esta dirección? Esta acción no se puede deshacer."
+        onConfirm={confirmDeleteAddress}
+        onCancel={() => setAddressToDelete(null)}
+      />
     </div>
   );
 };

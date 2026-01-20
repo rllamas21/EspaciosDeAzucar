@@ -150,12 +150,6 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ onSelect, selectedAdd
             <p className="text-xs text-stone-500">{addr.city}, {addr.province} ({addr.zip_code})</p>
             <p className="text-xs text-stone-400 mt-1">Recibe: {addr.recipient_name}</p>
 
-            <button 
-              onClick={(e) => handleDelete(addr.id, e)}
-              className="absolute bottom-3 right-3 p-1.5 text-stone-300 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
           </div>
         ))}
 
