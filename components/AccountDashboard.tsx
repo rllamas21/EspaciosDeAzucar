@@ -268,8 +268,8 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                       <div key={order.id} className="bg-white border border-stone-200 rounded-sm hover:border-stone-300 transition-colors">
                          {/* Header Corregido: Estilo normal y serio, sin serif */}
                          <div className="px-6 py-4 flex flex-wrap justify-between items-center gap-4 border-b border-stone-100">
-                            <div className="flex items-center gap-3">
-                               <span className="font-bold text-lg text-stone-900">Pedido #{order.id}</span>
+                            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+   <span className="font-bold text-sm text-stone-900">Pedido #{order.id}</span>
                                <span className="text-sm text-stone-400 font-light">{new Date(order.created_at).toLocaleDateString()}</span>
                             </div>
                             <div className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold border flex items-center gap-2 ${badge.color}`}>
@@ -325,7 +325,7 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                          {/* Footer Total */}
                          <div className="px-6 py-4 bg-stone-50/50 flex justify-between items-center border-t border-stone-100">
                             <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Total del Pedido</span>
-                            <span className="font-bold text-xl text-stone-900">${Number(order.total).toLocaleString()}</span>
+                            <span className="font-bold text-sm text-stone-900">${Number(order.total).toLocaleString()}</span>
                          </div>
                       </div>
                     );
