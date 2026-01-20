@@ -12,6 +12,7 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // ASEGÚRATE QUE EN TU .ENV ESTÉ TU PUBLIC_KEY DE PRODUCCIÓN (APP_USR-...)
     const publicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
 
     if (publicKey) {
@@ -23,21 +24,23 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
   }, []);
 
   const initialization = {
-    // Documentación Oficial: Se debe pasar el monto numérico.
     amount: Number(orderTotal),
     payer: {
-      // Documentación Oficial: Es obligatorio/recomendado pasar un email para evitar rechazos de fraude.
-      // En producción, aquí iría el email real del usuario (user.email).
-      email: 'test_user_1954@testuser.com', 
+      // IMPORTANTE EN PRODUCCIÓN: 
+      // Si tienes el email del usuario logueado, úsalo aquí. 
+      // Si no, usa uno genérico DIFERENTE al email de tu cuenta de vendedor.
+      // (Pagarse a sí mismo con el mismo email causa errores).
+      email: 'cliente_invitado@email.com', 
     },
   };
 
   const customization = {
-    // ✅ SEGÚN DOCUMENTACIÓN OFICIAL:
-    // No definimos 'creditCard' ni 'debitCard' como "all". 
-    // El SDK habilita todos los medios por defecto si no se excluyen.
-    // Solo definimos maxInstallments para controlar las cuotas.
     paymentMethods: {
+      // ✅ CONFIGURACIÓN PARA PRODUCCIÓN:
+      // Activamos explícitamente Crédito y Débito.
+      // NO incluimos ticket ni bankTransfer para evitar errores de validación.
+      creditCard: "all",
+      debitCard: "all",
       maxInstallments: 12
     },
     visual: {
