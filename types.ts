@@ -88,6 +88,7 @@ export interface Address {
   zip_code: string;    
   province: string;
   phone: string;
+  dni?: string;
   is_default: boolean; 
 }
 
