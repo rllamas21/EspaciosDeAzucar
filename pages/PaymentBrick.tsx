@@ -12,78 +12,61 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // ASEGÚRATE QUE EN TU .ENV ESTÉ TU PUBLIC_KEY DE PRODUCCIÓN (APP_USR-...)
+    // Inicialización del SDK
     const publicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
-
     if (publicKey) {
       initMercadoPago(publicKey, { locale: 'es-AR' });
       setReady(true);
-    } else {
-      console.error("❌ ERROR CRÍTICO: No se encontró VITE_MP_PUBLIC_KEY");
     }
   }, []);
 
+  // 1. INICIALIZACIÓN (Datos mínimos obligatorios)
   const initialization = {
     amount: Number(orderTotal),
     payer: {
-      // IMPORTANTE EN PRODUCCIÓN: 
-      // Si tienes el email del usuario logueado, úsalo aquí. 
-      // Si no, usa uno genérico DIFERENTE al email de tu cuenta de vendedor.
-      // (Pagarse a sí mismo con el mismo email causa errores).
-      email: 'cliente_invitado@email.com', 
+      email: 'test_user_123456@testuser.com', // Opcional: pre-rellena el email si lo tienes
     },
   };
 
+  // 2. PERSONALIZACIÓN (Visual y UI)
   const customization = {
-    paymentMethods: {
-      // ✅ CONFIGURACIÓN PARA PRODUCCIÓN:
-      // Activamos explícitamente Crédito y Débito.
-      // NO incluimos ticket ni bankTransfer para evitar errores de validación.
-      creditCard: "all",
-      debitCard: "all",
-      maxInstallments: 12
-    },
     visual: {
-        style: {
-            theme: 'flat',
-            customVariables: {
-                formBackgroundColor: '#ffffff',
-                baseColor: '#1c1917',
-                borderRadius: '6px',
-                successColor: '#16a34a',
-                warningColor: '#eab308',
-                errorColor: '#dc2626',
-            }
-        },
-        texts: {
-            formTitle: "default",
-        },
-        hidePaymentButton: false,
+      style: {
+        theme: 'flat', // 'default', 'dark', 'bootstrap' o 'flat'
+      },
     },
+    // NOTA: No definimos paymentMethods para dejar que MP use los valores predeterminados de la cuenta
   };
 
+  // 3. ONSUBMIT (Envío de datos al Backend)
   const onSubmit = async ({ selectedPaymentMethod, formData }: any) => {
     return new Promise<void>((resolve, reject) => {
       fetch("https://yobel-admin-638148538936.us-east1.run.app/api/store/payment/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData, 
+          ...formData, // El Brick genera el token y los datos necesarios aquí
           orderId: orderId,
           clientId: clientId
         }),
       })
       .then((response) => response.json())
       .then((data) => {
-        resolve(); 
+        // Manejo de respuesta basado en status
         if (data.status === 'approved') {
+            resolve();
             window.location.href = `/?status=success&payment_id=${data.id}&order_id=${orderId}`;
+        } else if (data.status === 'in_process') {
+             resolve();
+             window.location.href = `/?status=pending&payment_id=${data.id}`;
         } else {
+            // Rechazado
+            resolve();
             window.location.href = `/?status=failure&payment_id=${data.id}`;
         }
       })
       .catch((error) => {
-        console.error("Error procesando el pago:", error);
+        console.error("Error crítico:", error);
         reject();
       });
     });
@@ -94,27 +77,21 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
   };
 
   const onReady = async () => {
-    // Brick listo
+    // El componente cargó
   };
 
   if (!ready) {
-    return (
-        <div className="flex justify-center p-8">
-            <Loader2 className="w-6 h-6 animate-spin text-stone-400" />
-        </div>
-    );
+    return <div className="p-4 flex justify-center"><Loader2 className="animate-spin" /></div>;
   }
 
   return (
-    <div className="animate-in fade-in duration-500 w-full">
-      <Payment
-        initialization={initialization}
-        customization={customization as any} 
-        onSubmit={onSubmit}
-        onReady={onReady}
-        onError={onError}
-      />
-    </div>
+    <Payment
+      initialization={initialization}
+      customization={customization as any}
+      onSubmit={onSubmit}
+      onReady={onReady}
+      onError={onError}
+    />
   );
 };
 
