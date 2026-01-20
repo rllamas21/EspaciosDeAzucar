@@ -75,7 +75,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
     try {
       // Pedimos al backend que cree la "Preferencia" (el link de pago)
       // NOTA: Tu backend debe tener esta ruta habilitada.
-      const { data } = await api.post('/api/store/payment/preference', {
+      const { data } = await api.post('/api/store/checkout/preference', {
         orderId: createdOrderId,
         cart: cart // Enviamos info del carrito por si el backend la necesita
       });
