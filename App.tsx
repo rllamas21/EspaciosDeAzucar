@@ -168,60 +168,154 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
 type ViewState = 'home' | 'account' | 'shipping' | 'returns' | 'checkout' | 'checkout_return'; 
 
 const CheckoutReturn: React.FC<{
-  status: string | null;
   orderId: number | null;
   onGoHome: () => void;
-}> = ({ status, orderId, onGoHome }) => {
+}> = ({ orderId, onGoHome }) => {
   const [countdown, setCountdown] = useState(6);
+  const [loading, setLoading] = useState(true);
 
+  // 1. LÓGICA DE ESTADO INICIAL (LA VERDAD DE LA URL)
+  // Esto decide qué mostrar en el milisegundo 0. Sin spinners dobles.
+  const [uiStatus, setUiStatus] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mpStatus = params.get('status') || params.get('collection_status');
+
+    if (mpStatus === 'approved') return 'approved'; // Muestra Verde ya
+    if (mpStatus === 'failure' || mpStatus === 'rejected') return 'failed'; // Muestra Rojo ya
+    return 'pending'; // Solo muestra spinner si MP dice pending o null
+  });
+
+  const [uiReason, setUiReason] = useState<string | null>(null);
+
+  // 2. VERIFICACIÓN DE SEGURIDAD (BACKEND)
+  // Aunque ya mostremos verde/rojo, le preguntamos a TU base de datos para confirmar stock
   useEffect(() => {
+    if (!orderId) return;
+
+    let intervalId: ReturnType<typeof setInterval>;
+
+    const checkStatus = async () => {
+      try {
+        const { data } = await api.get(`/api/store/checkout/order-status?orderId=${orderId}`);
+        
+        // Lo que dice tu base de datos
+        const dbStatus = data?.ui?.status; 
+        const dbReason = data?.ui?.reason;
+
+        // REGLA DE ORO: Solo cambiamos la pantalla si el backend reporta un problema GRAVE
+        // o si confirma la transacción final.
+        
+        if (dbStatus === 'exception') {
+             // Caso crítico: Pagó (URL approved) pero no hay stock (Backend exception)
+             // Aquí cambiamos de Verde a Rojo/Alerta.
+             setUiStatus('exception');
+             setUiReason(dbReason);
+             setLoading(false);
+             clearInterval(intervalId);
+        } 
+        else if (dbStatus === 'approved') {
+             // Confirmación total. Sigue verde.
+             setLoading(false);
+             clearInterval(intervalId);
+        }
+        else if (dbStatus === 'failed' && uiStatus !== 'failed') {
+             // Si el backend se dio cuenta que falló y la URL decía otra cosa (raro), corregimos.
+             setUiStatus('failed');
+             setLoading(false);
+             clearInterval(intervalId);
+        }
+
+      } catch (e) {
+        console.error("Error polling backend:", e);
+      }
+    };
+
+    checkStatus();
+    intervalId = setInterval(checkStatus, 3000);
+    return () => clearInterval(intervalId);
+  }, [orderId, uiStatus]);
+
+  // 3. CUENTA REGRESIVA
+  useEffect(() => {
+    // Si hay error, excepción o sigue pendiente real, NO bajamos contador
+    if (uiStatus === 'exception' || uiStatus === 'failed' || uiStatus === 'pending') return;
+    
     const t = setInterval(() => setCountdown(c => c - 1), 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [uiStatus]);
 
   useEffect(() => {
     if (countdown <= 0) onGoHome();
   }, [countdown, onGoHome]);
 
-  const isApproved = status === 'approved';
-  const title = isApproved ? "¡Pago recibido!" : status === 'pending' ? "Pago pendiente" : "Pago no completado";
-  const desc = isApproved
-    ? "Tu pago fue confirmado. Te enviamos el comprobante por correo. Si el envío requiere coordinación, nuestro equipo se comunicará contigo."
-    : status === 'pending'
-      ? "El pago está en proceso. Te avisaremos apenas se confirme."
-      : "No pudimos confirmar el pago. Podés intentar nuevamente o elegir otro método.";
+  // --- RENDERIZADO ---
+  const isGreen = uiStatus === 'approved';
+  const isRed = uiStatus === 'exception' || uiStatus === 'failed' || uiStatus === 'expired';
+
+  let title = 'Procesando pago...';
+  let desc = 'Estamos conectando con el procesador de pagos...';
+
+  if (uiStatus === 'approved') {
+    title = '¡Pago confirmado!';
+    desc = 'Tu pago fue exitoso. Te enviamos el detalle por correo.';
+  } else if (uiStatus === 'failed') {
+    title = 'Pago rechazado';
+    desc = 'El procesador de pagos rechazó la transacción. Intenta con otro medio.';
+  } else if (uiStatus === 'expired') {
+    title = 'Tiempo agotado';
+    desc = 'La sesión de pago expiró.';
+  } else if (uiStatus === 'exception') {
+    title = 'Atención: Problema de Stock';
+    if (uiReason === 'paid_no_stock_refund') {
+       desc = 'Tu pago entró tarde y el producto se agotó. Te contactaremos para el reembolso inmediato.';
+    } else {
+       desc = 'Hubo una inconsistencia técnica con el stock. Tu dinero está seguro. Contacta soporte.';
+    }
+  }
 
   return (
     <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
       <div className="bg-white p-10 rounded-lg shadow-xl max-w-md w-full text-center border border-stone-100">
-        <div className={`w-20 h-20 ${isApproved ? 'bg-green-100' : 'bg-stone-100'} rounded-full flex items-center justify-center mx-auto mb-6`}>
-          <Check className={`w-10 h-10 ${isApproved ? 'text-green-600' : 'text-stone-500'}`} />
+        
+        <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 transition-colors duration-300 ${
+            isGreen ? 'bg-green-100' : isRed ? 'bg-red-100' : 'bg-stone-100'
+        }`}>
+          {uiStatus === 'pending' ? (
+             <Loader2 className="w-10 h-10 animate-spin text-stone-500" />
+          ) : isGreen ? (
+             <Check className="w-10 h-10 text-green-600" />
+          ) : (
+             <Info className="w-10 h-10 text-red-600" />
+          )}
         </div>
 
         <h2 className="font-serif text-3xl text-stone-900 mb-2">{title}</h2>
 
-        {orderId && (
-          <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4">
-            Orden #{orderId}
-          </p>
+        {orderId && <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4">Orden #{orderId}</p>}
+
+        <p className={`text-sm leading-relaxed mb-6 ${isRed ? 'text-stone-800 font-medium' : 'text-stone-500'}`}>
+           {desc}
+        </p>
+
+        {uiStatus === 'exception' ? (
+           <button onClick={() => window.open('https://wa.me/XXXXXXXX', '_blank')} className="w-full bg-red-600 text-white py-4 rounded font-bold uppercase tracking-widest hover:bg-red-700 transition-colors mb-3">
+             Contactar Soporte
+           </button>
+        ) : (
+           <div className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6">
+              {uiStatus === 'pending' ? 'Verificando...' : `Redirigiendo en ${countdown}s...`}
+           </div>
         )}
 
-        <p className="text-stone-500 mb-6 text-sm leading-relaxed">{desc}</p>
-
-        <div className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6">
-          Redirigiendo en {countdown}s...
-        </div>
-
-        <button
-          onClick={onGoHome}
-          className="w-full bg-stone-900 text-white py-4 rounded font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors"
-        >
-          Ir a la tienda ahora
+        <button onClick={onGoHome} className="w-full bg-stone-900 text-white py-4 rounded font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors">
+          {isRed || uiStatus === 'failed' ? 'Volver e intentar de nuevo' : 'Ir a la tienda ahora'}
         </button>
+
       </div>
     </div>
   );
 };
+
 
 
 const App: React.FC = () => {
@@ -250,18 +344,11 @@ const App: React.FC = () => {
 
 useEffect(() => {
   const params = new URLSearchParams(window.location.search);
-  const status = params.get('status');
   const orderIdParam = params.get('orderId');
 
-  if (status) {
-    setReturnStatus(status);
-
-    if (orderIdParam) {
-      const parsed = Number(orderIdParam);
-      if (!Number.isNaN(parsed)) setLastOrderId(parsed);
-    }
-
-    if (status === 'approved') setCart([]);
+  if (orderIdParam) {
+    const parsed = Number(orderIdParam);
+    if (!Number.isNaN(parsed)) setLastOrderId(parsed);
 
     setView('checkout_return');
 
@@ -269,6 +356,7 @@ useEffect(() => {
     window.history.replaceState({}, '', '/checkout/return');
   }
 }, []);
+
 
 
 
@@ -659,10 +747,10 @@ useEffect(() => {
   />
 ) : view === 'checkout_return' ? (
   <CheckoutReturn
-    status={returnStatus}
-    orderId={lastOrderId}
-    onGoHome={() => { setView('home'); }}
-  />
+  orderId={lastOrderId}
+  onGoHome={() => { setView('home'); }}
+/>
+
 ) : (
   // HOME / CATÁLOGO
   <>
