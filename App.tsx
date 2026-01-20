@@ -9,7 +9,6 @@ import AccountDashboard from './components/AccountDashboard';
 import InfoPage from './components/InfoPage';
 import ProductDetailModal from './components/ProductDetailModal'; 
 import CheckoutPage from './pages/CheckoutPage'; 
-import CheckoutReturn from './pages/CheckoutReturn';
 import api from './lib/api';
 import { useAuth } from './context/AuthContext';
 import { CartItem, Product, Category, ColorOption, Language } from './types';
@@ -579,7 +578,23 @@ useEffect(() => {
     onReturnToShop={() => setView('home')}
   />
 ) : view === 'checkout_return' ? (
-  <CheckoutReturn />
+  <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+    <div className="bg-white p-10 rounded-lg shadow-xl max-w-md w-full text-center border border-stone-100">
+      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <Check className="w-10 h-10 text-green-600" />
+      </div>
+      <h2 className="font-serif text-3xl text-stone-900 mb-2">¡Pago Exitoso!</h2>
+      <p className="text-stone-500 mb-8 text-sm leading-relaxed">
+        Tu orden ha sido procesada correctamente. Hemos enviado los detalles a tu correo.
+      </p>
+      <button 
+        onClick={() => { setCart([]); setView('home'); }} 
+        className="w-full bg-stone-900 text-white py-4 rounded font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors"
+      >
+        Seguir Comprando
+      </button>
+    </div>
+  </div>
 ) : (
   // HOME / CATÁLOGO
   <>
