@@ -472,7 +472,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-stone-50 font-sans selection:bg-stone-200 selection:text-stone-900 flex flex-col">
       
       {/* 1. NAVBAR: Solo se muestra si NO estamos en checkout */}
-      {view !== 'checkout' && (
+      {view !== 'checkout' && view !== 'payment_result' && (
         <Navbar 
           cartCount={cart.reduce((acc, item) => acc + item.quantity, 0)} 
           onOpenCart={() => setIsCartOpen(true)} 
