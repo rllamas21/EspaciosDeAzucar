@@ -345,12 +345,18 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
                   
                   {/* TABS DE SELECCIÓN */}
                   <div className="grid grid-cols-2 gap-4 mb-8">
-                    <button 
-                      onClick={() => setPaymentMethod('mercadopago')}
-                      className={`border rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all ${paymentMethod === 'mercadopago' ? 'border-stone-900 bg-stone-50 ring-1 ring-stone-900 text-stone-900' : 'border-stone-200 text-stone-400 hover:border-stone-400'}`}
-                    >
-                      <img src="/mercadonegro.png" alt="Mercado Pago" className="h-6 w-auto object-contain" />
-                    </button>
+                   <button 
+  onClick={handleMercadoPagoRedirect}
+  disabled={!createdOrderId || isRedirecting}
+  className="border border-stone-900 bg-stone-50 rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all hover:bg-stone-100 disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  {isRedirecting ? (
+    <Loader2 className="w-5 h-5 animate-spin text-stone-700" />
+  ) : (
+    <img src="/mercadonegro.png" alt="Mercado Pago" className="h-6 w-auto object-contain" />
+  )}
+</button>
+
 
                     <button 
                       onClick={() => setPaymentMethod('transfer')}
@@ -363,43 +369,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
                       </div>
                     </button>
                   </div>
-
-                  {/* OPCIÓN A: MERCADO PAGO (BOTÓN DE REDIRECCIÓN) */}
-                  {paymentMethod === 'mercadopago' && createdOrderId && (
-                    <div className="flex flex-col items-center justify-center py-6 space-y-6 animate-in fade-in bg-stone-50/50 rounded-lg border border-stone-100 p-4">
-                        <div className="text-center space-y-2 max-w-sm">
-                            <h4 className="font-serif font-medium text-stone-900">Finalizar en Mercado Pago</h4>
-                            <p className="text-sm text-stone-500 leading-relaxed">
-                                Serás redirigido al sitio seguro de Mercado Pago para completar tu compra con el medio de pago que prefieras.
-                            </p>
-                        </div>
-
-                        <button
-                          onClick={handleMercadoPagoRedirect}
-                          disabled={isRedirecting}
-                          className="bg-[#009EE3] hover:bg-[#008ED6] text-white px-8 py-4 rounded-md font-medium transition-all flex items-center gap-3 shadow-md hover:shadow-lg transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed w-full md:w-auto justify-center"
-                        >
-                          {isRedirecting ? (
-                            <>
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                                <span>Procesando...</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>Pagar ahora</span>
-                              <ExternalLink className="w-4 h-4" />
-                            </>
-                          )}
-                        </button>
-                        
-                        <div className="flex gap-2 justify-center opacity-50 grayscale">
-                             {/* Iconos visuales decorativos */}
-                             <div className="h-6 w-10 bg-white border border-stone-200 rounded"></div>
-                             <div className="h-6 w-10 bg-white border border-stone-200 rounded"></div>
-                             <div className="h-6 w-10 bg-white border border-stone-200 rounded"></div>
-                        </div>
-                    </div>
-                  )}
 
                   {/* OPCIÓN B: TRANSFERENCIA */}
                   {paymentMethod === 'transfer' && (
