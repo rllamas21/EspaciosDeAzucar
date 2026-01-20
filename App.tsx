@@ -167,6 +167,63 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
 type ViewState = 'home' | 'account' | 'shipping' | 'returns' | 'checkout' | 'checkout_return'; 
 
+const CheckoutReturn: React.FC<{
+  status: string | null;
+  orderId: number | null;
+  onGoHome: () => void;
+}> = ({ status, orderId, onGoHome }) => {
+  const [countdown, setCountdown] = useState(6);
+
+  useEffect(() => {
+    const t = setInterval(() => setCountdown(c => c - 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if (countdown <= 0) onGoHome();
+  }, [countdown, onGoHome]);
+
+  const isApproved = status === 'approved';
+  const title = isApproved ? "¡Pago recibido!" : status === 'pending' ? "Pago pendiente" : "Pago no completado";
+  const desc = isApproved
+    ? "Tu pago fue confirmado. Te enviamos el comprobante por correo. Si el envío requiere coordinación, nuestro equipo se comunicará contigo."
+    : status === 'pending'
+      ? "El pago está en proceso. Te avisaremos apenas se confirme."
+      : "No pudimos confirmar el pago. Podés intentar nuevamente o elegir otro método.";
+
+  return (
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+      <div className="bg-white p-10 rounded-lg shadow-xl max-w-md w-full text-center border border-stone-100">
+        <div className={`w-20 h-20 ${isApproved ? 'bg-green-100' : 'bg-stone-100'} rounded-full flex items-center justify-center mx-auto mb-6`}>
+          <Check className={`w-10 h-10 ${isApproved ? 'text-green-600' : 'text-stone-500'}`} />
+        </div>
+
+        <h2 className="font-serif text-3xl text-stone-900 mb-2">{title}</h2>
+
+        {orderId && (
+          <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4">
+            Orden #{orderId}
+          </p>
+        )}
+
+        <p className="text-stone-500 mb-6 text-sm leading-relaxed">{desc}</p>
+
+        <div className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6">
+          Redirigiendo en {countdown}s...
+        </div>
+
+        <button
+          onClick={onGoHome}
+          className="w-full bg-stone-900 text-white py-4 rounded font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors"
+        >
+          Ir a la tienda ahora
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
 const App: React.FC = () => {
   const { user, logout, loading: authLoading } = useAuth(); 
   const [view, setView] = useState<ViewState>('home');
@@ -187,25 +244,32 @@ const App: React.FC = () => {
   const [initialModalColor, setInitialModalColor] = useState<ColorOption | undefined>(undefined);
   const [sizeModal, setSizeModal] = useState<{ isOpen: boolean; product: Product | null; selectedColor: ColorOption | null; }>({ isOpen: false, product: null, selectedColor: null });
   const [localWishlist, setLocalWishlist] = useState<Product[]>([]);
+  const [returnStatus, setReturnStatus] = useState<string | null>(null);
+  const [lastOrderId, setLastOrderId] = useState<number | null>(null);
 
-  // 🔁 RETORNO DE MERCADO PAGO (limpieza + estado)
+
 useEffect(() => {
   const params = new URLSearchParams(window.location.search);
   const status = params.get('status');
+  const orderIdParam = params.get('orderId');
 
   if (status) {
-    // si el pago fue aprobado → limpiamos carrito
-    if (status === 'approved') {
-      setCart([]);
+    setReturnStatus(status);
+
+    if (orderIdParam) {
+      const parsed = Number(orderIdParam);
+      if (!Number.isNaN(parsed)) setLastOrderId(parsed);
     }
 
-    // mostramos pantalla de retorno
+    if (status === 'approved') setCart([]);
+
     setView('checkout_return');
 
-    // limpiamos la URL (sacamos basura de MP)
+    // limpia querystring pero deja la ruta
     window.history.replaceState({}, '', '/checkout/return');
   }
 }, []);
+
 
 
   
@@ -594,23 +658,11 @@ useEffect(() => {
     onReturnToShop={() => setView('home')}
   />
 ) : view === 'checkout_return' ? (
-  <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
-    <div className="bg-white p-10 rounded-lg shadow-xl max-w-md w-full text-center border border-stone-100">
-      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-        <Check className="w-10 h-10 text-green-600" />
-      </div>
-      <h2 className="font-serif text-3xl text-stone-900 mb-2">¡Pago Exitoso!</h2>
-      <p className="text-stone-500 mb-8 text-sm leading-relaxed">
-        Tu orden ha sido procesada correctamente. Hemos enviado los detalles a tu correo.
-      </p>
-      <button 
-        onClick={() => { setCart([]); setView('home'); }} 
-        className="w-full bg-stone-900 text-white py-4 rounded font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors"
-      >
-        Seguir Comprando
-      </button>
-    </div>
-  </div>
+  <CheckoutReturn
+    status={returnStatus}
+    orderId={lastOrderId}
+    onGoHome={() => { setView('home'); }}
+  />
 ) : (
   // HOME / CATÁLOGO
   <>
