@@ -13,6 +13,7 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
 
   useEffect(() => {
     const publicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
+
     if (publicKey) {
       initMercadoPago(publicKey, { locale: 'es-AR' });
       setReady(true);
@@ -24,26 +25,25 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
   const initialization = {
     amount: Number(orderTotal),
     payer: {
-      email: 'test_user_1954@testuser.com', // Email recomendado para pruebas (Sandbox)
+      email: 'test_user_1954@testuser.com', // Email genérico para evitar errores de pre-llenado
     },
   };
 
   const customization = {
     paymentMethods: {
-      // 📘 SEGÚN DOCUMENTACIÓN:
-      // Solo definimos lo que queremos controlar. 
-      // Eliminamos 'ticket', 'bankTransfer' y 'mercadoPago' para evitar conflictos.
-      // Al no ponerlos, el Brick prioriza Tarjetas si 'creditCard' está en 'all'.
+      // 🔴 SOLUCIÓN DEL ERROR:
+      // Eliminamos explícitamente las claves 'ticket', 'bankTransfer' y 'mercadoPago'.
+      // Al no estar presentes, el Brick no intenta validarlas y no rompe la lista de tipos permitidos.
       creditCard: "all",
       debitCard: "all",
       maxInstallments: 12
     },
     visual: {
         style: {
-            theme: 'flat', // Tema plano y moderno
+            theme: 'flat',
             customVariables: {
-                formBackgroundColor: '#ffffff', // Fondo blanco puro
-                baseColor: '#1c1917', // Tu color Stone-900
+                formBackgroundColor: '#ffffff',
+                baseColor: '#1c1917',
                 borderRadius: '6px',
                 successColor: '#16a34a',
                 warningColor: '#eab308',
@@ -51,14 +51,14 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
             }
         },
         texts: {
-            formTitle: "default", // Mantenemos default para evitar duplicidad visual
+            formTitle: "default",
         },
         hidePaymentButton: false,
     },
   };
 
   const onSubmit = async ({ selectedPaymentMethod, formData }: any) => {
-    // IMPORTANTE: Retornar la promesa para que el botón de carga funcione nativamente
+    // Es obligatorio retornar una promesa para que el Brick maneje el loading state
     return new Promise<void>((resolve, reject) => {
       fetch("https://yobel-admin-638148538936.us-east1.run.app/api/store/payment/process", {
         method: "POST",
@@ -71,7 +71,7 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
       })
       .then((response) => response.json())
       .then((data) => {
-        resolve(); // Avisamos al Brick que terminó el proceso
+        resolve(); 
         if (data.status === 'approved') {
             window.location.href = `/?status=success&payment_id=${data.id}&order_id=${orderId}`;
         } else {
@@ -80,13 +80,14 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
       })
       .catch((error) => {
         console.error("Error procesando el pago:", error);
-        reject(); // Avisamos al Brick que hubo error
+        reject();
       });
     });
   };
 
   const onError = async (error: any) => {
-    console.log("Error en Brick:", error);
+    // Este log te ayudará a ver si Mercado Pago rechaza algo más
+    console.log("Error interno del Brick:", error);
   };
 
   const onReady = async () => {
