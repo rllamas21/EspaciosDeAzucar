@@ -8,7 +8,6 @@ import AuthModal from './components/AuthModal';
 import AccountDashboard from './components/AccountDashboard';
 import InfoPage from './components/InfoPage';
 import ProductDetailModal from './components/ProductDetailModal'; 
-import PaymentResult from './pages/PaymentResult';
 import CheckoutPage from './pages/CheckoutPage'; 
 import CheckoutReturn from './pages/CheckoutReturn';
 import api from './lib/api';
@@ -167,7 +166,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
   }
 };
 
-type ViewState = 'home' | 'account' | 'shipping' | 'returns' | 'checkout' | 'payment_result' | 'checkout_return'; 
+type ViewState = 'home' | 'account' | 'shipping' | 'returns' | 'checkout' | 'checkout_return'; 
 
 const App: React.FC = () => {
   const { user, logout, loading: authLoading } = useAuth(); 
@@ -189,6 +188,26 @@ const App: React.FC = () => {
   const [initialModalColor, setInitialModalColor] = useState<ColorOption | undefined>(undefined);
   const [sizeModal, setSizeModal] = useState<{ isOpen: boolean; product: Product | null; selectedColor: ColorOption | null; }>({ isOpen: false, product: null, selectedColor: null });
   const [localWishlist, setLocalWishlist] = useState<Product[]>([]);
+
+  // 🔁 RETORNO DE MERCADO PAGO (limpieza + estado)
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const status = params.get('status');
+
+  if (status) {
+    // si el pago fue aprobado → limpiamos carrito
+    if (status === 'approved') {
+      setCart([]);
+    }
+
+    // mostramos pantalla de retorno
+    setView('checkout_return');
+
+    // limpiamos la URL (sacamos basura de MP)
+    window.history.replaceState({}, '', '/checkout/return');
+  }
+}, []);
+
 
   
 
@@ -538,9 +557,9 @@ const App: React.FC = () => {
 
       {/* CONTENIDO PRINCIPAL */}
       <main className="flex-grow">
-       {view === 'account' && user ? (
+     {view === 'account' && user ? (
   <AccountDashboard 
-    user={{...user, role:'client', wishlist:localWishlist, addresses:[], orders:[]}} 
+    user={{ ...user, role: 'client', wishlist: localWishlist, addresses: [], orders: [] }} 
     onLogout={handleLogout} 
     t={t} 
     onRemoveFromWishlist={() => {}} 
@@ -556,16 +575,15 @@ const App: React.FC = () => {
 ) : view === 'checkout' ? (
   <CheckoutPage 
     cart={cart}
-    total={cart.reduce((a,c) => a + c.price * c.quantity, 0)}
+    total={cart.reduce((a, c) => a + c.price * c.quantity, 0)}
     onReturnToShop={() => setView('home')}
   />
 ) : view === 'checkout_return' ? (
   <CheckoutReturn />
-) : view === 'payment_result' ? (
-  <PaymentResult />
 ) : (
   // HOME / CATÁLOGO
   <>
+
 
              <section className="relative h-screen w-full flex items-center justify-center overflow-hidden animate-in fade-in duration-1000">
                 <div className="absolute inset-0 bg-stone-200">
