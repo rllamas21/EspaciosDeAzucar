@@ -164,21 +164,17 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({
     e.preventDefault();
     setSavingAddress(true);
     try {
-      // Unimos piso/depto si lo deseas, o los mandas separados según tu backend
+      // CORRECCIÓN: Quitamos la lógica de unión.
+      // editingAddress YA tiene el 'floor_apt' correcto que escribió el usuario (ej: "1B")
       const payload = {
         ...editingAddress,
-        floor_apt: editingAddress.floor + (editingAddress.apartment ? ` ${editingAddress.apartment}` : ''),
         is_default: addresses.length === 0 ? true : editingAddress.is_default
       };
 
+      // Si usas lógica de create/update:
       if (editingAddress.id) {
-         // Editar (PUT si tienes la ruta, o POST manejado)
-         // Asumo que tu backend usa POST para crear y tal vez necesites implementar PUT. 
-         // Si no tienes PUT, puedes crear una nueva y borrar la vieja, o ajustar tu backend.
-         // Por ahora usaremos POST para crear (como en AddressSelector).
          await api.post('/api/store/addresses', payload); 
       } else {
-         // Crear
          await api.post('/api/store/addresses', payload);
       }
       
