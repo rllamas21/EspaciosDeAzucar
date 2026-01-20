@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User, Package, MapPin, Heart, LogOut, ChevronRight, User as UserIcon, Trash2, Plus, Minus, ArrowLeft, Loader2, CheckCircle, Clock, XCircle, AlertTriangle, ChevronLeft, Star } from 'lucide-react';
+import { Package, MapPin, Heart, LogOut, ChevronRight, User as UserIcon, Trash2, Plus, Minus, ArrowLeft, Loader2, CheckCircle, Clock, XCircle, ChevronLeft, Star, X, ZoomIn } from 'lucide-react';
 import { Product, User as UserType, Address } from '../types';
 import api from '../lib/api';
 
@@ -17,6 +17,42 @@ interface AccountDashboardProps {
 }
 
 type Tab = 'overview' | 'orders' | 'addresses' | 'wishlist';
+
+// --- MODAL DE IMAGEN (LIGHTBOX) ---
+const ImageModal: React.FC<{
+  isOpen: boolean;
+  imageUrl: string | null;
+  productName: string;
+  onClose: () => void;
+}> = ({ isOpen, imageUrl, productName, onClose }) => {
+  if (!isOpen || !imageUrl) return null;
+  
+  return (
+    <div 
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-300"
+      onClick={onClose}
+    >
+      <button 
+        onClick={onClose}
+        className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors"
+      >
+        <X className="w-8 h-8" />
+      </button>
+      
+      <div 
+        className="relative max-w-4xl max-h-[85vh] w-full flex flex-col items-center justify-center"
+        onClick={(e) => e.stopPropagation()} // Evita cerrar si clickeas la imagen
+      >
+        <img 
+          src={imageUrl} 
+          alt={productName} 
+          className="max-w-full max-h-[80vh] object-contain rounded-sm shadow-2xl animate-in zoom-in-95 duration-300" 
+        />
+        <p className="mt-4 text-white/90 font-serif text-lg tracking-wide">{productName}</p>
+      </div>
+    </div>
+  );
+};
 
 // --- MODAL DE CONFIRMACIÓN ---
 const ConfirmModal: React.FC<{
@@ -98,6 +134,9 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
   // Delete Confirmation State
   const [addressToDelete, setAddressToDelete] = useState<number | null>(null);
 
+  // Image Viewer State
+  const [viewingImage, setViewingImage] = useState<{ url: string, name: string } | null>(null);
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const ORDERS_PER_PAGE = 5;
@@ -145,8 +184,6 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
 
   const handleSetDefault = async (addr: Address) => {
     try {
-       // Enviamos la misma dirección pero con is_default = true
-       // El backend se encarga de quitarle el default a las demás
        await api.post('/api/store/addresses', { ...addr, is_default: true, floor_apt: addr.floor_apt });
        fetchAddresses();
     } catch (err) { console.error(err); }
@@ -156,7 +193,6 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
     e.preventDefault();
     setSavingAddress(true);
     try {
-      // Si es la primera dirección, forzamos default true
       const isFirst = addresses.length === 0;
       const payload = { ...editingAddress, is_default: isFirst ? true : editingAddress.is_default };
       await api.post('/api/store/addresses', payload);
@@ -230,40 +266,62 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                     const BadgeIcon = badge.icon;
                     return (
                       <div key={order.id} className="bg-white border border-stone-200 rounded-sm hover:border-stone-300 transition-colors">
+                         {/* Header Corregido */}
                          <div className="px-6 py-4 flex flex-wrap justify-between items-center gap-4 border-b border-stone-100">
-                            <div className="flex items-baseline gap-3">
-                               <span className="font-serif text-lg font-bold text-stone-900">Pedido #{order.id}</span>
+                            <div className="flex items-center gap-3">
+                               <span className="font-serif text-xl text-stone-900">Pedido #{order.id}</span>
                                <span className="text-sm text-stone-400 font-light">{new Date(order.created_at).toLocaleDateString()}</span>
                             </div>
                             <div className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold border flex items-center gap-2 ${badge.color}`}>
                                <BadgeIcon className="w-3 h-3" /> {badge.label}
                             </div>
                          </div>
+
+                         {/* Items con funcionalidad de ZOOM (Lightbox) */}
                          <div className="p-6 flex flex-col gap-4">
                             {order.items.map((item: any, idx: number) => {
                                let opts: any = {};
                                try { opts = typeof item.variant_options === 'string' ? JSON.parse(item.variant_options) : item.variant_options; } catch(e){}
                                const variantText = [opts.Color, opts.Talla, opts.Medida].filter(Boolean).join(' / ');
+                               
                                return (
-                                 <div key={idx} className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-stone-50 border border-stone-100 rounded-sm flex items-center justify-center text-stone-300 flex-shrink-0">
-                                       <Package className="w-6 h-6" />
+                                 <div key={idx} className="flex items-center gap-6">
+                                    {/* Imagen Clickeable */}
+                                    <div 
+                                      className="w-20 h-20 bg-stone-50 border border-stone-100 rounded-sm flex items-center justify-center text-stone-300 flex-shrink-0 overflow-hidden cursor-zoom-in relative group"
+                                      onClick={() => item.image && setViewingImage({ url: item.image, name: item.product_name })}
+                                    >
+                                       {item.image ? (
+                                          <>
+                                            <img src={item.image} alt={item.product_name} className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" />
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                               <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
+                                            </div>
+                                          </>
+                                       ) : (
+                                          <Package className="w-8 h-8" strokeWidth={1.5} />
+                                       )}
                                     </div>
+
                                     <div className="flex-1">
-                                       <div className="flex items-baseline gap-2">
-                                          <p className="text-sm font-medium text-stone-900">{item.product_name}</p>
-                                          {item.quantity > 1 && <span className="text-xs font-bold text-stone-500 bg-stone-100 px-1.5 rounded-sm">x{item.quantity}</span>}
+                                       <div className="flex flex-col gap-1">
+                                          <div className="flex items-baseline gap-2">
+                                             <p className="font-serif text-lg text-stone-900">{item.product_name}</p>
+                                             {item.quantity > 1 && <span className="text-xs font-bold text-stone-500 bg-stone-100 px-1.5 rounded-sm">x{item.quantity}</span>}
+                                          </div>
+                                          {variantText && <p className="text-sm text-stone-500">{variantText}</p>}
+                                          
+                                          <p className="text-sm font-medium text-stone-900 mt-1">
+                                             ${Number(item.unit_price).toLocaleString()} <span className="text-stone-400 font-normal text-xs">unidad</span>
+                                          </p>
                                        </div>
-                                       {variantText && <p className="text-xs text-stone-500 mt-0.5">{variantText}</p>}
-                                       {item.quantity === 1 && <p className="text-xs text-stone-400 mt-0.5">Cantidad: 1</p>} 
-                                    </div>
-                                    <div className="text-right">
-                                       <p className="text-sm font-bold text-stone-900">${Number(item.unit_price).toLocaleString()}</p>
                                     </div>
                                  </div>
                                )
                             })}
                          </div>
+
+                         {/* Footer Total */}
                          <div className="px-6 py-4 bg-stone-50/50 flex justify-between items-center border-t border-stone-100">
                             <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Total del Pedido</span>
                             <span className="font-serif text-xl text-stone-900">${Number(order.total).toLocaleString()}</span>
@@ -271,6 +329,7 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                       </div>
                     );
                  })}
+                 
                  {totalPages > 1 && (
                     <div className="flex justify-center items-center gap-4 pt-4">
                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 border border-stone-200 rounded-full hover:bg-stone-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"><ChevronLeft className="w-4 h-4" /></button>
@@ -304,7 +363,6 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                               <MapPin className="w-4 h-4 text-stone-400" />
                               <h4 className="font-bold text-sm uppercase tracking-wide">{addr.alias}</h4>
                            </div>
-                           {/* Botón Favorito */}
                            {!addr.is_default && (
                               <button onClick={() => handleSetDefault(addr)} className="text-stone-300 hover:text-yellow-500 transition-colors" title="Marcar como Principal">
                                  <Star className="w-4 h-4" />
@@ -414,6 +472,14 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
         message="¿Estás seguro que deseas eliminar esta dirección? Esta acción no se puede deshacer."
         onConfirm={confirmDeleteAddress}
         onCancel={() => setAddressToDelete(null)}
+      />
+
+      {/* LIGHTBOX (VISOR DE IMAGEN) */}
+      <ImageModal 
+        isOpen={viewingImage !== null} 
+        imageUrl={viewingImage?.url || null}
+        productName={viewingImage?.name || ''}
+        onClose={() => setViewingImage(null)}
       />
     </div>
   );
