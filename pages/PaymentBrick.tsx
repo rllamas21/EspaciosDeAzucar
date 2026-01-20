@@ -23,19 +23,21 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
   }, []);
 
   const initialization = {
+    // Documentación Oficial: Se debe pasar el monto numérico.
     amount: Number(orderTotal),
     payer: {
-      email: 'test_user_1954@testuser.com', // Email genérico para evitar errores de pre-llenado
+      // Documentación Oficial: Es obligatorio/recomendado pasar un email para evitar rechazos de fraude.
+      // En producción, aquí iría el email real del usuario (user.email).
+      email: 'test_user_1954@testuser.com', 
     },
   };
 
   const customization = {
+    // ✅ SEGÚN DOCUMENTACIÓN OFICIAL:
+    // No definimos 'creditCard' ni 'debitCard' como "all". 
+    // El SDK habilita todos los medios por defecto si no se excluyen.
+    // Solo definimos maxInstallments para controlar las cuotas.
     paymentMethods: {
-      // 🔴 SOLUCIÓN DEL ERROR:
-      // Eliminamos explícitamente las claves 'ticket', 'bankTransfer' y 'mercadoPago'.
-      // Al no estar presentes, el Brick no intenta validarlas y no rompe la lista de tipos permitidos.
-      creditCard: "all",
-      debitCard: "all",
       maxInstallments: 12
     },
     visual: {
@@ -58,7 +60,6 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
   };
 
   const onSubmit = async ({ selectedPaymentMethod, formData }: any) => {
-    // Es obligatorio retornar una promesa para que el Brick maneje el loading state
     return new Promise<void>((resolve, reject) => {
       fetch("https://yobel-admin-638148538936.us-east1.run.app/api/store/payment/process", {
         method: "POST",
@@ -86,12 +87,11 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
   };
 
   const onError = async (error: any) => {
-    // Este log te ayudará a ver si Mercado Pago rechaza algo más
-    console.log("Error interno del Brick:", error);
+    console.log("Error en Brick:", error);
   };
 
   const onReady = async () => {
-    // El brick cargó correctamente
+    // Brick listo
   };
 
   if (!ready) {
