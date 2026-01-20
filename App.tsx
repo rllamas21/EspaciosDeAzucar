@@ -175,15 +175,22 @@ const CheckoutReturn: React.FC<{
   const [loading, setLoading] = useState(true);
 
   // 1. LÓGICA DE ESTADO INICIAL (LA VERDAD DE LA URL)
-  // Esto decide qué mostrar en el milisegundo 0. Sin spinners dobles.
   const [uiStatus, setUiStatus] = useState<string>(() => {
     const params = new URLSearchParams(window.location.search);
     const mpStatus = params.get('status') || params.get('collection_status');
 
-    if (mpStatus === 'approved') return 'approved'; // Muestra Verde ya
-    if (mpStatus === 'failure' || mpStatus === 'rejected') return 'failed'; // Muestra Rojo ya
-    return 'pending'; // Solo muestra spinner si MP dice pending o null
+    if (mpStatus === 'approved') return 'approved';
+    if (mpStatus === 'failure' || mpStatus === 'rejected') return 'failed'; 
+    return 'pending'; 
   });
+
+  // ✨ NUEVO: Limpiamos la URL visualmente AHORA que ya leímos el estado
+  useEffect(() => {
+     if (window.location.search.includes('status=')) {
+        // Esto limpia la barra de direcciones sin recargar la página (la sesión no se cierra)
+        window.history.replaceState({}, '', '/checkout/return');
+     }
+  }, []);
 
   const [uiReason, setUiReason] = useState<string | null>(null);
 
@@ -351,9 +358,6 @@ useEffect(() => {
     if (!Number.isNaN(parsed)) setLastOrderId(parsed);
 
     setView('checkout_return');
-
-    // limpia querystring pero deja la ruta
-    window.history.replaceState({}, '', '/checkout/return');
   }
 }, []);
 
