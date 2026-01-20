@@ -752,7 +752,10 @@ useEffect(() => {
 ) : view === 'checkout_return' ? (
   <CheckoutReturn
   orderId={lastOrderId}
-  onGoHome={() => { setView('home'); }}
+  onGoHome={() => { 
+      setView('home'); 
+      window.history.pushState({}, '', '/'); 
+    }}
 />
 
 ) : (
@@ -817,7 +820,7 @@ useEffect(() => {
       </main>
 
       {/* FOOTER */}
-      {view !== 'account' && view !== 'checkout' && (
+      {view !== 'account' && view !== 'checkout' && view !== 'checkout_return' && (
         <footer className="bg-stone-100 py-20 px-6 border-t border-stone-200 mt-auto">
           <div className="max-w-7xl mx-auto flex flex-col items-center justify-center text-center space-y-8">
             <h4 className="font-serif text-2xl text-stone-900">Espacios de Azúcar</h4>
