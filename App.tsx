@@ -266,16 +266,21 @@ useEffect(() => {
               }
 
               return {
-                id: String(item.variant_id), 
-                cartItemId: String(item.id), // ID único para borrar/editar
-                name: item.fixed_product_name,
-                price: parseFloat(item.unit_price_snapshot),
-                quantity: item.quantity,
-                image: item.fixed_image_snapshot || '', 
-                selectedColor: colorObj, // ✅ Objeto reconstruido
-                // Recuperamos talla buscando por varias claves comunes
-                selectedSize: item.fixed_variant_options?.Talla || item.fixed_variant_options?.Medida || item.fixed_variant_options?.size || item.fixed_variant_options?.Size
-              };
+  id: String(item.product_id ?? item.fixed_product_id ?? item.productId), // ✅ PRODUCT ID
+  cartItemId: String(item.id), // ✅ DB cart row id
+  selectedVariantId: Number(item.variant_id), // ✅ VARIANT ID
+
+  name: item.fixed_product_name,
+  price: parseFloat(item.unit_price_snapshot),
+  quantity: item.quantity,
+  image: item.fixed_image_snapshot || '',
+  selectedColor: colorObj,
+  selectedSize: item.fixed_variant_options?.Talla
+    || item.fixed_variant_options?.Medida
+    || item.fixed_variant_options?.size
+    || item.fixed_variant_options?.Size
+};
+
             });
 
             setCart(savedItems);
@@ -417,7 +422,8 @@ useEffect(() => {
       if (existing) {
         return prev.map(item => String(item.cartItemId) === cartItemId ? { ...item, quantity: item.quantity + quantity } : item);
       }
-      return [...prev, { ...product, image: variantImage, quantity, selectedColor: color, selectedSize: size, cartItemId }];
+      return [...prev, { ...product, image: variantImage || product.image, quantity, selectedColor: color, selectedSize: size, cartItemId, selectedVariantId: foundVariant?.id }];
+
     });
     showToast(`${product.name} ${t('toast_added')}`, t('toast_cart'));
   };
@@ -478,7 +484,7 @@ useEffect(() => {
     <div className="min-h-screen bg-stone-50 font-sans selection:bg-stone-200 selection:text-stone-900 flex flex-col">
       
       {/* 1. NAVBAR: Solo se muestra si NO estamos en checkout */}
-      {view !== 'checkout' && view !== 'payment_result' && (
+      {view !== 'checkout' && view !== 'checkout_return' && (
         <Navbar 
           cartCount={cart.reduce((acc, item) => acc + item.quantity, 0)} 
           onOpenCart={() => setIsCartOpen(true)} 
@@ -501,13 +507,23 @@ useEffect(() => {
         onClose={() => setIsCartOpen(false)} 
         cart={cart} 
         onUpdateQuantity={(id, d) => {
-           setCart(prev => prev.map(i => i.cartItemId === id ? {...i, quantity: Math.max(0, i.quantity + d)} : i).filter(i => i.quantity > 0));
-           const item = cart.find(i => i.cartItemId === id);
-           if (user && item) {
-               const newQty = item.quantity + d;
-               if (newQty > 0) api.put(`/api/store/cart/items/${id}`, { quantity: newQty }).catch(e => console.error(e));
-           }
-        }} 
+  setCart(prev => {
+    const next = prev
+      .map(i => i.cartItemId === id ? { ...i, quantity: Math.max(0, i.quantity + d) } : i)
+      .filter(i => i.quantity > 0);
+
+    const updated = next.find(i => i.cartItemId === id);
+    if (user) {
+      if (updated) {
+        api.put(`/api/store/cart/items/${id}`, { quantity: updated.quantity }).catch(console.error);
+      } else {
+        api.delete(`/api/store/cart/items/${id}`).catch(console.error);
+      }
+    }
+    return next;
+  });
+}}
+
         
         onRemoveItem={handleRemoveItem} 
         

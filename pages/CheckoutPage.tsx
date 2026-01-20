@@ -75,10 +75,8 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
     try {
       // Pedimos al backend que cree la "Preferencia" (el link de pago)
       // NOTA: Tu backend debe tener esta ruta habilitada.
-      const { data } = await api.post('/api/store/checkout/preference', {
-        orderId: createdOrderId,
-        cart: cart // Enviamos info del carrito por si el backend la necesita
-      });
+      const { data } = await api.post('/api/store/checkout/preference', { orderId: createdOrderId })
+
 
       // Si recibimos el link (init_point), nos vamos a la web de MP
       if (data.init_point) {
@@ -105,18 +103,11 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
 
     try {
       const itemsLimpios = cart.map(item => ({
-        id: Number(item.id),
-        productId: Number(item.id), 
-        title: item.name,
-        name: item.name,
-        quantity: Number(item.quantity),
-        unit_price: Number(item.price),
-        price: Number(item.price),
-        currency_id: "ARS",
-        picture_url: item.image,
-        selectedColor: item.selectedColor, 
-        selectedSize: item.selectedSize
-      }));
+  productId: Number(item.id),                 // ✅ product id
+  variantId: Number(item.selectedVariantId),  // ✅ variant id
+  quantity: Number(item.quantity),
+}));
+
 
       const orderPayload = {
         shippingAddress: {
@@ -345,11 +336,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
                   
                   {/* TABS DE SELECCIÓN */}
                   <div className="grid grid-cols-2 gap-4 mb-8">
-                   <button 
-  onClick={handleMercadoPagoRedirect}
-  disabled={!createdOrderId || isRedirecting}
-  className="border border-stone-900 bg-stone-50 rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all hover:bg-stone-100 disabled:opacity-50 disabled:cursor-not-allowed"
->
+                   <button onClick={() => { setPaymentMethod('mercadopago'); handleMercadoPagoRedirect(); }} disabled={!createdOrderId || isRedirecting} className="border border-stone-900 bg-stone-50 rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all hover:bg-stone-100 disabled:opacity-50 disabled:cursor-not-allowed">
   {isRedirecting ? (
     <Loader2 className="w-5 h-5 animate-spin text-stone-700" />
   ) : (
