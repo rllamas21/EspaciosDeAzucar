@@ -46,12 +46,13 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ onSelect, selectedAdd
   const [newAddress, setNewAddress] = useState({
     alias: '', 
     recipient_name: '',
+    dni: '',       
     street: '',
     number: '',
-    floor_apt: '',
+    floor_apt: '', 
     city: '',
     zip_code: '',
-    province: '', // Obligaremos a elegir una
+    province: '', 
     phone: ''
   });
 
@@ -81,7 +82,6 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ onSelect, selectedAdd
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validación simple
     if (!newAddress.province) {
       alert("Por favor selecciona una provincia.");
       return;
@@ -91,16 +91,18 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ onSelect, selectedAdd
     try {
       const { data } = await api.post('/api/store/addresses', {
         ...newAddress,
-        alias: newAddress.alias || 'Mi Dirección', // Si lo dejan vacío, ponemos un default genérico
+        alias: newAddress.alias || 'Mi Dirección', 
         is_default: addresses.length === 0
       });
       
       await fetchAddresses();
       onSelect(data); 
       setShowForm(false);
-      // Reset form
+      
+      // RESET FORM (Agregamos DNI aquí también)
       setNewAddress({ 
-        alias: '', recipient_name: '', street: '', number: '', floor_apt: '', 
+        alias: '', recipient_name: '', dni: '', // <--- Reset DNI
+        street: '', number: '', floor_apt: '', 
         city: '', zip_code: '', province: '', phone: '' 
       });
     } catch (error) {
@@ -190,6 +192,25 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ onSelect, selectedAdd
               />
             </div>
 
+            {/* AQUÍ AGREGAMOS EL DNI Y EL TELÉFONO JUNTOS */}
+            <div className="grid grid-cols-2 gap-3">
+               <input 
+                placeholder="DNI / CUIT" 
+                className="input-delicate"
+                required
+                value={newAddress.dni}
+                onChange={e => setNewAddress({...newAddress, dni: e.target.value})}
+              />
+               <input 
+                placeholder="Teléfono de contacto" 
+                className="input-delicate"
+                required
+                type="tel"
+                value={newAddress.phone}
+                onChange={e => setNewAddress({...newAddress, phone: e.target.value})}
+              />
+            </div>
+
             <div className="grid grid-cols-3 gap-3">
               <input 
                 placeholder="Calle / Avenida" 
@@ -208,7 +229,8 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ onSelect, selectedAdd
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-               <input 
+              {/* MANTENEMOS PISO/DEPTO COMO UN SOLO CAMPO */}
+              <input 
                 placeholder="Piso / Depto (Opcional)" 
                 className="input-delicate"
                 value={newAddress.floor_apt}
@@ -230,9 +252,7 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ onSelect, selectedAdd
               />
             </div>
 
-             <div className="grid grid-cols-2 gap-3">
-              {/* SELECT DE PROVINCIAS COMPLETO */}
-              <div className="relative">
+             <div className="relative">
                 <select 
                    className="input-delicate appearance-none bg-white" 
                    value={newAddress.province}
@@ -248,16 +268,6 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ onSelect, selectedAdd
                   <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                 </div>
               </div>
-
-               <input 
-                placeholder="Teléfono de contacto" 
-                className="input-delicate"
-                required
-                type="tel"
-                value={newAddress.phone}
-                onChange={e => setNewAddress({...newAddress, phone: e.target.value})}
-              />
-            </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-stone-100 mt-4">
               <button 

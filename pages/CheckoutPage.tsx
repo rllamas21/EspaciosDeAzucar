@@ -103,21 +103,25 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
 
     try {
       const itemsLimpios = cart.map(item => ({
-  productId: Number(item.id),                 // ✅ product id
-  variantId: Number(item.selectedVariantId),  // ✅ variant id
+  productId: Number(item.id),                
+  variantId: Number(item.selectedVariantId),  
   quantity: Number(item.quantity),
 }));
 
 
       const orderPayload = {
         shippingAddress: {
-          firstName: selectedAddress.recipient_name.split(' ')[0],
+          recipient_name: selectedAddress.recipient_name, 
+          firstName: selectedAddress.recipient_name.split(' ')[0], 
           lastName: selectedAddress.recipient_name.split(' ').slice(1).join(' ') || '',
+          
+          dni: selectedAddress.dni || '', 
           phone: selectedAddress.phone,
           street: selectedAddress.street,
           number: selectedAddress.number,
+          floor_apt: selectedAddress.floor_apt || '', 
           city: selectedAddress.city,
-          zip: selectedAddress.zip_code,
+          zip: selectedAddress.zip_code, 
           province: selectedAddress.province
         },
         billingAddress: {}, 
