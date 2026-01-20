@@ -19,24 +19,30 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
     }
   }, []);
 
+  // SEGÚN TU CÓDIGO COPIADO:
   const initialization = {
     amount: Number(orderTotal),
     payer: {
-      // IMPORTANTE: Si usas el mismo email que el vendedor, falla.
-      // Ponemos uno genérico seguro para evitar conflictos de "auto-compra".
-      email: 'comprador_generico@email.com', 
+      email: 'test_user_123456@testuser.com', 
     },
   };
 
+  // SEGÚN TU CÓDIGO COPIADO (¡Esto es lo que faltaba!):
   const customization = {
     visual: {
       style: {
-        theme: 'flat', 
+        theme: 'default', // Tu código dice "default"
       },
-      hidePaymentButton: false,
     },
-    // 🚨 BORRÉ "paymentMethods". 
-    // Al no existir, el Brick NO filtra nada. Acepta todo lo que tu cuenta acepte.
+    paymentMethods: {
+      creditCard: "all",
+      debitCard: "all",
+      ticket: "all",
+      bankTransfer: "all",
+      onboarding_credits: "all",
+      wallet_purchase: "all",
+      maxInstallments: 12 // Puse 12 para dar flexibilidad, tu código decía 1.
+    },
   };
 
   const onSubmit = async ({ selectedPaymentMethod, formData }: any) => {
@@ -45,13 +51,22 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData, 
+          ...formData, // Aquí va todo lo que el Brick generó
+          // Agregamos tus datos extra para que el Backend sepa quién es
           orderId: orderId,
-          clientId: clientId
+          clientId: clientId,
+          // Un pequeño parche por si el Brick no manda description
+          description: "Compra en Tienda",
+          // Y nos aseguramos que payer venga completo
+          payer: {
+             ...formData.payer,
+             email: formData.payer.email || 'test_user_123456@testuser.com'
+          }
         }),
       })
       .then((response) => response.json())
       .then((data) => {
+        // Tu Backend devuelve el objeto 'result' directo de MP
         if (data.status === 'approved') {
             resolve();
             window.location.href = `/?status=success&payment_id=${data.id}&order_id=${orderId}`;
@@ -64,32 +79,19 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
         }
       })
       .catch((error) => {
-        console.error("Error Brick:", error);
+        console.error("Error:", error);
         reject();
       });
     });
   };
 
-  const onError = async (error: any) => {
-    // Si sigue fallando, esto nos dirá qué pasa internamente sin hablar de tarjetas
-    console.log("Error Interno SDK:", error);
-  };
-
-  const onReady = async () => {
-    // Brick listo
-  };
-
-  if (!ready) {
-    return <div className="p-4 flex justify-center"><Loader2 className="animate-spin" /></div>;
-  }
+  if (!ready) return <Loader2 className="animate-spin" />;
 
   return (
     <Payment
       initialization={initialization}
       customization={customization as any}
       onSubmit={onSubmit}
-      onReady={onReady}
-      onError={onError}
     />
   );
 };
