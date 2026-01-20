@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ShoppingBag, ShieldCheck, Loader2, AlertCircle, Copy, Check, UploadCloud, CreditCard, Building2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, ShieldCheck, Loader2, AlertCircle, Copy, Check, UploadCloud, Building2, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import AddressSelector from '../components/AddressSelector';
-import PaymentBrick from '../pages/PaymentBrick'; 
+// ELIMINADO: import PaymentBrick... (Ya no se usa)
 import api from '../lib/api';
 import { CartItem, Address } from '../types';
 
@@ -33,6 +33,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
   // Estados de Pago
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>(null);
   const [loadingOrder, setLoadingOrder] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false); // NUEVO ESTADO PARA REDIRECCIÓN
   
   // Datos tras crear la orden (MP)
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
@@ -64,6 +65,34 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
     navigator.clipboard.writeText(text);
     setCopiedField(field);
     setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  // --- NUEVA FUNCIÓN PARA REDIRIGIR A MERCADO PAGO ---
+  const handleMercadoPagoRedirect = async () => {
+    if (!createdOrderId) return;
+    
+    setIsRedirecting(true);
+    try {
+      // Pedimos al backend que cree la "Preferencia" (el link de pago)
+      // NOTA: Tu backend debe tener esta ruta habilitada.
+      const { data } = await api.post('/api/store/payment/preference', {
+        orderId: createdOrderId,
+        cart: cart // Enviamos info del carrito por si el backend la necesita
+      });
+
+      // Si recibimos el link (init_point), nos vamos a la web de MP
+      if (data.init_point) {
+        window.location.href = data.init_point;
+      } else {
+        console.error("No se recibió el link de pago");
+        setError("Error al conectar con Mercado Pago. Intenta nuevamente.");
+        setIsRedirecting(false);
+      }
+    } catch (error) {
+      console.error("Error iniciando Checkout Pro:", error);
+      setError("Hubo un problema al generar el link de pago.");
+      setIsRedirecting(false);
+    }
   };
 
   const handleConfirmShipping = async () => {
@@ -113,7 +142,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
       if (data.clientId) setClientId(data.clientId);
       
       setStep('payment');
-      window.scrollTo({ top: 0, behavior: 'smooth' }); // Subir al inicio al cambiar de paso
+      window.scrollTo({ top: 0, behavior: 'smooth' }); 
 
     } catch (err: any) {
       console.error("Error creando orden:", err);
@@ -131,7 +160,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
     setIsTransferSuccess(true);
   };
 
-  // --- COMPONENTE INTERNO DE RESUMEN (Para reutilizar en móvil y desktop) ---
+  // --- COMPONENTE INTERNO DE RESUMEN ---
   const OrderSummaryContent = () => (
     <>
       <div className="max-h-[300px] overflow-y-auto space-y-4 pr-2 mb-6 scrollbar-thin scrollbar-thumb-stone-200">
@@ -220,12 +249,11 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
             <ShieldCheck className="w-5 h-5 text-green-600" />
             <span className="font-serif font-bold text-lg">Pago Seguro</span>
           </div>
-          {/* Espaciador para centrar en móvil */}
           <div className="w-4 sm:hidden"></div>
         </div>
       </header>
 
-      {/* --- NUEVO: RESUMEN MÓVIL ACORDEÓN (Solo visible en celular lg:hidden) --- */}
+      {/* --- RESUMEN MÓVIL --- */}
       <div className="lg:hidden bg-stone-50 border-b border-stone-200">
         <button 
           onClick={() => setShowMobileSummary(!showMobileSummary)}
@@ -239,7 +267,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
           <span className="font-bold text-stone-900">${finalTotal.toLocaleString()}</span>
         </button>
         
-        {/* Contenido desplegable */}
         {showMobileSummary && (
           <div className="p-4 bg-white border-t border-stone-200 animate-in slide-in-from-top-2">
             <OrderSummaryContent />
@@ -261,7 +288,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
               <h2 className="font-serif text-xl text-stone-800">Dirección de Envío</h2>
             </div>
 
-            {/* Formulario (Visible si estamos en shipping) */}
             <div className={step === 'payment' ? 'hidden' : 'block animate-in fade-in'}>
               <AddressSelector 
                 onSelect={(addr) => { setSelectedAddress(addr); setError(null); }} 
@@ -285,7 +311,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
               </div>
             </div>
 
-            {/* Resumen del paso 1 (Visible si estamos en payment) */}
             {step === 'payment' && selectedAddress && (
               <div className="ml-0 md:ml-11 bg-stone-50 border border-stone-200 rounded p-4 flex justify-between items-center animate-in fade-in slide-in-from-top-2">
                 <div className="text-sm text-stone-600">
@@ -305,11 +330,9 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
 
           {/* PASO 2: PAGO */}
           <div 
-  className={`bg-white p-6 md:p-8 rounded-lg transition-all ${step === 'shipping' ? 'opacity-40 grayscale pointer-events-none' : 'opacity-100'}`}
-  style={{ border: paymentMethod === 'mercadopago' ? 'none' : '1px solid #e7e5e4',
-    boxShadow: paymentMethod === 'mercadopago' ? 'none' : '0 1px 2px 0 rgb(0 0 0 / 0.05)'
-  }}
->
+             className={`bg-white p-6 md:p-8 rounded-lg transition-all ${step === 'shipping' ? 'opacity-40 grayscale pointer-events-none' : 'opacity-100'}`}
+             style={{ border: '1px solid #e7e5e4', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}
+          >
             <div className="flex items-center gap-3 mb-6">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step === 'shipping' ? 'bg-stone-200 text-stone-500' : 'bg-stone-900 text-white'}`}>
                 2
@@ -341,14 +364,40 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
                     </button>
                   </div>
 
-                  {/* OPCIÓN A: MERCADO PAGO */}
+                  {/* OPCIÓN A: MERCADO PAGO (BOTÓN DE REDIRECCIÓN) */}
                   {paymentMethod === 'mercadopago' && createdOrderId && (
-                    <div className="mt-4 animate-in fade-in">
-                      <PaymentBrick 
-                        orderTotal={total} 
-                        orderId={createdOrderId}
-                        clientId={clientId || 0}
-                      />
+                    <div className="flex flex-col items-center justify-center py-6 space-y-6 animate-in fade-in bg-stone-50/50 rounded-lg border border-stone-100 p-4">
+                        <div className="text-center space-y-2 max-w-sm">
+                            <h4 className="font-serif font-medium text-stone-900">Finalizar en Mercado Pago</h4>
+                            <p className="text-sm text-stone-500 leading-relaxed">
+                                Serás redirigido al sitio seguro de Mercado Pago para completar tu compra con el medio de pago que prefieras.
+                            </p>
+                        </div>
+
+                        <button
+                          onClick={handleMercadoPagoRedirect}
+                          disabled={isRedirecting}
+                          className="bg-[#009EE3] hover:bg-[#008ED6] text-white px-8 py-4 rounded-md font-medium transition-all flex items-center gap-3 shadow-md hover:shadow-lg transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed w-full md:w-auto justify-center"
+                        >
+                          {isRedirecting ? (
+                            <>
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                <span>Procesando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Pagar ahora</span>
+                              <ExternalLink className="w-4 h-4" />
+                            </>
+                          )}
+                        </button>
+                        
+                        <div className="flex gap-2 justify-center opacity-50 grayscale">
+                             {/* Iconos visuales decorativos */}
+                             <div className="h-6 w-10 bg-white border border-stone-200 rounded"></div>
+                             <div className="h-6 w-10 bg-white border border-stone-200 rounded"></div>
+                             <div className="h-6 w-10 bg-white border border-stone-200 rounded"></div>
+                        </div>
                     </div>
                   )}
 
@@ -361,24 +410,24 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
                         <div className="space-y-4">
                            {/* CBU */}
                            <div className="bg-white border border-stone-200 p-3 rounded flex justify-between items-center group">
-                              <div>
-                                <span className="text-[10px] uppercase text-stone-400 font-bold tracking-wider block mb-1">CBU / CVU</span>
-                                <span className="font-mono text-stone-800 text-sm md:text-base break-all">{BANK_DETAILS.cbu}</span>
-                              </div>
-                              <button onClick={() => handleCopy(BANK_DETAILS.cbu, 'cbu')} className="p-2 text-stone-400 hover:text-stone-900 relative">
-                                {copiedField === 'cbu' ? <Check className="w-5 h-5 text-green-600"/> : <Copy className="w-5 h-5"/>}
-                              </button>
+                             <div>
+                               <span className="text-[10px] uppercase text-stone-400 font-bold tracking-wider block mb-1">CBU / CVU</span>
+                               <span className="font-mono text-stone-800 text-sm md:text-base break-all">{BANK_DETAILS.cbu}</span>
+                             </div>
+                             <button onClick={() => handleCopy(BANK_DETAILS.cbu, 'cbu')} className="p-2 text-stone-400 hover:text-stone-900 relative">
+                               {copiedField === 'cbu' ? <Check className="w-5 h-5 text-green-600"/> : <Copy className="w-5 h-5"/>}
+                             </button>
                            </div>
 
                            {/* ALIAS */}
                            <div className="bg-white border border-stone-200 p-3 rounded flex justify-between items-center group">
-                              <div>
-                                <span className="text-[10px] uppercase text-stone-400 font-bold tracking-wider block mb-1">Alias</span>
-                                <span className="font-mono text-stone-800 text-base font-bold">{BANK_DETAILS.alias}</span>
-                              </div>
-                              <button onClick={() => handleCopy(BANK_DETAILS.alias, 'alias')} className="p-2 text-stone-400 hover:text-stone-900">
+                             <div>
+                               <span className="text-[10px] uppercase text-stone-400 font-bold tracking-wider block mb-1">Alias</span>
+                               <span className="font-mono text-stone-800 text-base font-bold">{BANK_DETAILS.alias}</span>
+                             </div>
+                             <button onClick={() => handleCopy(BANK_DETAILS.alias, 'alias')} className="p-2 text-stone-400 hover:text-stone-900">
                                  {copiedField === 'alias' ? <Check className="w-5 h-5 text-green-600"/> : <Copy className="w-5 h-5"/>}
-                              </button>
+                             </button>
                            </div>
 
                            {/* INFO EXTRA */}
@@ -435,13 +484,12 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
 
         </div>
 
-        {/* COLUMNA DERECHA: RESUMEN DESKTOP (Se oculta en móvil lg:hidden porque ya está arriba) */}
+        {/* COLUMNA DERECHA: RESUMEN DESKTOP */}
         <div className="hidden lg:block lg:col-span-1">
           <div className="bg-white p-6 rounded-lg shadow-sm border border-stone-100 sticky top-24">
             <h3 className="font-serif text-lg mb-4 flex items-center gap-2">
               <ShoppingBag className="w-4 h-4" /> Resumen del Pedido
             </h3>
-            {/* Reutilizamos el contenido */}
             <OrderSummaryContent />
           </div>
         </div>
