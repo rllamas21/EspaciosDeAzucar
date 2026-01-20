@@ -12,47 +12,53 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Inicialización del SDK
     const publicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
     if (publicKey) {
       initMercadoPago(publicKey, { locale: 'es-AR' });
       setReady(true);
+    } else {
+        console.error("Falta la Public Key");
     }
   }, []);
 
-  // 1. INICIALIZACIÓN (Datos mínimos obligatorios)
   const initialization = {
     amount: Number(orderTotal),
     payer: {
-      email: 'test_user_123456@testuser.com', // Opcional: pre-rellena el email si lo tienes
+      email: 'test_user_123456@testuser.com', 
     },
   };
 
-  // 2. PERSONALIZACIÓN (Visual y UI)
   const customization = {
+    paymentMethods: {
+      // 🚨 AQUÍ ESTÁ LA SOLUCIÓN AL ERROR "No payment type was selected"
+      // Debemos activar explícitamente los métodos.
+      creditCard: "all",
+      debitCard: "all",
+      ticket: "all",       // Rapipago / Pago Fácil
+      bankTransfer: "all", // Transferencias si están habilitadas
+      maxInstallments: 12
+    },
     visual: {
       style: {
-        theme: 'flat', // 'default', 'dark', 'bootstrap' o 'flat'
+        theme: 'flat', 
       },
+      hidePaymentButton: false,
     },
-    // NOTA: No definimos paymentMethods para dejar que MP use los valores predeterminados de la cuenta
   };
 
-  // 3. ONSUBMIT (Envío de datos al Backend)
   const onSubmit = async ({ selectedPaymentMethod, formData }: any) => {
     return new Promise<void>((resolve, reject) => {
       fetch("https://yobel-admin-638148538936.us-east1.run.app/api/store/payment/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData, // El Brick genera el token y los datos necesarios aquí
+          ...formData, 
           orderId: orderId,
           clientId: clientId
         }),
       })
       .then((response) => response.json())
       .then((data) => {
-        // Manejo de respuesta basado en status
         if (data.status === 'approved') {
             resolve();
             window.location.href = `/?status=success&payment_id=${data.id}&order_id=${orderId}`;
@@ -60,7 +66,6 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
              resolve();
              window.location.href = `/?status=pending&payment_id=${data.id}`;
         } else {
-            // Rechazado
             resolve();
             window.location.href = `/?status=failure&payment_id=${data.id}`;
         }
@@ -77,7 +82,7 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
   };
 
   const onReady = async () => {
-    // El componente cargó
+    // Brick cargado
   };
 
   if (!ready) {
