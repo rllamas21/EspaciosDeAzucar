@@ -16,34 +16,27 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
     if (publicKey) {
       initMercadoPago(publicKey, { locale: 'es-AR' });
       setReady(true);
-    } else {
-        console.error("Falta la Public Key");
     }
   }, []);
 
   const initialization = {
     amount: Number(orderTotal),
     payer: {
-      email: 'test_user_123456@testuser.com', 
+      // IMPORTANTE: Si usas el mismo email que el vendedor, falla.
+      // Ponemos uno genérico seguro para evitar conflictos de "auto-compra".
+      email: 'comprador_generico@email.com', 
     },
   };
 
   const customization = {
-    paymentMethods: {
-      // 🚨 AQUÍ ESTÁ LA SOLUCIÓN AL ERROR "No payment type was selected"
-      // Debemos activar explícitamente los métodos.
-      creditCard: "all",
-      debitCard: "all",
-      ticket: "all",       // Rapipago / Pago Fácil
-      bankTransfer: "all", // Transferencias si están habilitadas
-      maxInstallments: 12
-    },
     visual: {
       style: {
         theme: 'flat', 
       },
       hidePaymentButton: false,
     },
+    // 🚨 BORRÉ "paymentMethods". 
+    // Al no existir, el Brick NO filtra nada. Acepta todo lo que tu cuenta acepte.
   };
 
   const onSubmit = async ({ selectedPaymentMethod, formData }: any) => {
@@ -71,18 +64,19 @@ const PaymentBrick = ({ orderTotal, orderId, clientId }: PaymentBrickProps) => {
         }
       })
       .catch((error) => {
-        console.error("Error crítico:", error);
+        console.error("Error Brick:", error);
         reject();
       });
     });
   };
 
   const onError = async (error: any) => {
-    console.log("Error en Brick:", error);
+    // Si sigue fallando, esto nos dirá qué pasa internamente sin hablar de tarjetas
+    console.log("Error Interno SDK:", error);
   };
 
   const onReady = async () => {
-    // Brick cargado
+    // Brick listo
   };
 
   if (!ready) {
