@@ -555,42 +555,68 @@ useEffect(() => {
   };
 
 
-  const commitAddToCart = async (product: Product, color?: ColorOption, size?: string, quantity: number = 1) => {
+  const commitAddToCart = async (
+    product: Product, 
+    color?: ColorOption, 
+    size?: string, 
+    quantity: number = 1, 
+    explicitVariantId?: number // <--- 5to parámetro opcional para Wishlist
+  ) => {
+    // 1. Buscamos la variante
     const foundVariant = product.variants?.find((v: any) => {
+      // Si viene de Wishlist, buscamos por ID directo
+      if (explicitVariantId) return v.id === explicitVariantId;
+      
+      // Si viene de la grilla, usamos tus filtros originales de color/talla
       const matchColor = color ? v.attributes?.Color === color.name : true;
       const matchSize = size ? (v.attributes?.Talla === size || v.attributes?.Medida === size) : true;
       return matchColor && matchSize;
     });
 
+    // 2. Fallback de seguridad: Si no se encuentra (caso raro), usamos la primera variante activa
+    const variantToUse = foundVariant || (product.variants && product.variants[0]);
+
     let realDbId: string | null = null;
 
-    if (user && foundVariant) {
+    // 3. Persistencia en Base de Datos (Esto evita que se pierda al dar F5)
+    if (user && variantToUse) {
       try { 
-
-         const { data } = await api.post('/api/store/cart/items', { variantId: foundVariant.id, quantity }); 
-         if (data && data.item) {
-             realDbId = String(data.item.id);
-         }
+          const { data } = await api.post('/api/store/cart/items', { 
+            variantId: variantToUse.id, 
+            quantity 
+          }); 
+          if (data && data.item) {
+              realDbId = String(data.item.id);
+          }
       } 
-      catch (err) { console.error("Error DB", err); }
+      catch (err) { console.error("Error sincronizando carrito con DB:", err); }
     }
 
-    const variantImage = foundVariant?.image;
+    const variantImage = variantToUse?.image;
 
+    // 4. Actualización del estado visual (Frontend)
     setCart(prev => {
-
       const cartItemId = realDbId 
           ? String(realDbId) 
-          : (foundVariant ? String(foundVariant.id) : `${product.id}-${color?.name || ''}`);
+          : (variantToUse ? String(variantToUse.id) : `${product.id}-${color?.name || ''}`);
       
       const existing = prev.find(item => String(item.cartItemId) === cartItemId);
       
       if (existing) {
         return prev.map(item => String(item.cartItemId) === cartItemId ? { ...item, quantity: item.quantity + quantity } : item);
       }
-      return [...prev, { ...product, image: variantImage || product.image, quantity, selectedColor: color, selectedSize: size, cartItemId, selectedVariantId: foundVariant?.id }];
 
+      return [...prev, { 
+        ...product, 
+        image: variantImage || product.image, 
+        quantity, 
+        selectedColor: color, 
+        selectedSize: size, 
+        cartItemId, 
+        selectedVariantId: variantToUse?.id 
+      }];
     });
+
     showToast(`${product.name} ${t('toast_added')}`, t('toast_cart'));
   };
 
@@ -740,15 +766,15 @@ useEffect(() => {
       <main className="flex-grow">
      {view === 'account' && user ? (
   <AccountDashboard 
-    user={{ ...user, role: 'client', wishlist: localWishlist, addresses: [], orders: [] }} 
-    onLogout={handleLogout} 
-    t={t} 
-    onRemoveFromWishlist={(id) => setLocalWishlist(prev => prev.filter(i => i.id !== id))} 
-    onAddToCart={handleAddToCartRequest} 
-    onAddressSave={() => {}} 
-    onAddressDelete={() => {}} 
-    onNavigate={(v) => setView(v as ViewState)} 
-  />
+  user={{ ...user, role: 'client', wishlist: localWishlist, addresses: [], orders: [] }} 
+  onLogout={handleLogout} 
+  t={t} 
+  onRemoveFromWishlist={(id) => setLocalWishlist(prev => prev.filter(i => i.id !== id))} 
+  onAddToCart={(prod, col, qty, varId) => commitAddToCart(prod, col, undefined, qty, varId)} 
+  onAddressSave={() => {}} 
+  onAddressDelete={() => {}} 
+  onNavigate={(v) => setView(v as ViewState)} 
+/>
 ) : view === 'shipping' ? (
   <InfoPage type="shipping" onBack={() => setView('home')} t={t} />
 ) : view === 'returns' ? (
@@ -800,7 +826,7 @@ useEffect(() => {
                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
                  {filteredProducts.length > 0 ? (
                    filteredProducts.map(p => (
-                     <ProductCard key={p.id} product={p} onAdd={handleAddToCartRequest} isWishlisted={localWishlist.some(i => i.id === p.id)} onToggleWishlist={() => handleToggleWishlist(p)} onOpenDetails={(product, color) => { setSelectedProduct(product); setInitialModalColor(color);}} />
+                     <ProductCard key={p.id} product={p} onAdd={handleAddToCartRequest} isWishlisted={localWishlist.some(i => i.id === p.id)} onToggleWishlist={(vId) => handleToggleWishlist(p, vId)} onOpenDetails={(product, color) => { setSelectedProduct(product); setInitialModalColor(color);}} />
                    ))
                  ) : (
                    <div className="col-span-full flex flex-col items-center justify-center text-center py-48 px-4 border-2 border-dashed border-stone-200 rounded-lg bg-stone-50/50">

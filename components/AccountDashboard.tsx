@@ -79,9 +79,10 @@ const ConfirmModal: React.FC<{
 
 // --- ITEM WISHLIST (MEJORADO CON STOCK) ---
 const WishlistItem: React.FC<{
-  item: any; // Usamos 'any' para aceptar la propiedad 'stock' que viene del backend nuevo
+  item: any; 
   onRemove: (id: string) => void;
-  onAddToCart: (item: Product, quantity: number) => void;
+  // Agregá los parámetros color y variantId aquí:
+  onAddToCart: (item: Product, color: any, quantity: number, variantId: number) => void; 
   t: (key: string) => string;
 }> = ({ item, onRemove, onAddToCart, t }) => {
   const [quantity, setQuantity] = useState(1);
