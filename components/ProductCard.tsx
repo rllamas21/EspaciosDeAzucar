@@ -169,8 +169,7 @@ const isWishlistedVariant = !!wishlist?.some(w => String(w.id) === String(produc
   onToggleWishlist(variantId);
 }}
 
-            className="absolute top-3 right-3 p-2 rounded-full bg-black/20 backdrop-blur-sm transition-all duration-300 z-10 hover:scale-110 active:scale-95 group/heart"
-
+            className="absolute top-3 right-3 p-2 rounded-full transition-all duration-300 z-10 hover:scale-110 active:scale-95 group/heart"
           >
             <Heart
               className={`w-5 h-5 transition-colors duration-300 drop-shadow-sm ${

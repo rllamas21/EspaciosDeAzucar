@@ -12,7 +12,7 @@ interface AccountDashboardProps {
   onLogout: () => void;
   t: (key: string) => string;
   onRemoveFromWishlist: (productId: string) => void;
-  onAddToCart: (product: Product, color?: any, quantity?: number) => void;
+  onAddToCart: (product: Product, color?: any, size?: string, quantity?: number) => void;
   onNavigate?: (view: 'home') => void;
 }
 
@@ -397,7 +397,7 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
              {user.wishlist.length > 0 ? (
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  {user.wishlist.map((item) => (
-                   <WishlistItem key={item.id} item={item} onRemove={onRemoveFromWishlist} onAddToCart={(itm, qty) => onAddToCart(itm, undefined, qty)} t={t} />
+                   <WishlistItem key={item.id} item={item} onRemove={onRemoveFromWishlist} onAddToCart={(itm, qty) => onAddToCart(itm, undefined, undefined, qty)} t={t}/>
                  ))}
                </div>
              ) : <div className="text-center py-20 bg-stone-50 border border-stone-100 border-dashed"><Heart className="w-8 h-8 mx-auto text-stone-300 mb-4" /><p className="text-stone-500">Aún no has guardado piezas de inspiración.</p></div>}
