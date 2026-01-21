@@ -5,8 +5,8 @@ import { Product, ColorOption } from '../types';
 interface ProductCardProps {
   product: Product;
   onAdd: (product: Product, color?: ColorOption) => void;
-  isWishlisted?: boolean;
-  onToggleWishlist?: () => void;
+  wishlist?: any[];
+  onToggleWishlist?: (variantId: number) => void;
   onOpenDetails?: (product: Product, color?: ColorOption) => void;
 }
 
@@ -15,10 +15,11 @@ const normalize = (str?: string) => str ? str.toLowerCase().trim() : '';
 const ProductCard: React.FC<ProductCardProps> = ({
   product,
   onAdd,
-  isWishlisted,
+  wishlist,
   onToggleWishlist,
   onOpenDetails
 }) => {
+
 
   const [selectedColor, setSelectedColor] = useState<ColorOption | undefined>();
   // baseImage puede ser string (URL) o null (No hay imagen)
@@ -108,7 +109,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
     })
   : product.variants?.[0];
 
-const displayPrice = selectedVariant?.price ?? product.price;
+  const displayPrice = selectedVariant?.price ?? product.price;
+
+
+const isWishlistedVariant = !!wishlist?.some(w => String(w.id) === String(product.id) && Number(w.selectedVariantId) === Number(selectedVariant?.id));
+
 
 
   return (
@@ -158,14 +163,19 @@ const displayPrice = selectedVariant?.price ?? product.price;
         {onToggleWishlist && (
           <button
             onClick={(e) => {
-              e.stopPropagation();
-              onToggleWishlist();
-            }}
-            className="absolute top-3 right-3 p-2 rounded-full transition-all duration-300 z-10 hover:scale-110 active:scale-95 group/heart"
+  e.stopPropagation();
+  const variantId = selectedVariant?.id;
+  if (!variantId) return; 
+  onToggleWishlist(variantId);
+}}
+
+            className="absolute top-3 right-3 p-2 rounded-full bg-black/20 backdrop-blur-sm transition-all duration-300 z-10 hover:scale-110 active:scale-95 group/heart"
+
           >
             <Heart
               className={`w-5 h-5 transition-colors duration-300 drop-shadow-sm ${
-                isWishlisted
+                isWishlistedVariant
+
                   ? 'fill-stone-900 text-stone-900'
                   : 'text-white group-hover/heart:text-stone-900'
               }`}

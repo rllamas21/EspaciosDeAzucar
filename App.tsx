@@ -344,7 +344,7 @@ const App: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [initialModalColor, setInitialModalColor] = useState<ColorOption | undefined>(undefined);
   const [sizeModal, setSizeModal] = useState<{ isOpen: boolean; product: Product | null; selectedColor: ColorOption | null; }>({ isOpen: false, product: null, selectedColor: null });
-  const [localWishlist, setLocalWishlist] = useState<Product[]>([]);
+  const [localWishlist, setLocalWishlist] = useState<any[]>([]);
   const [returnStatus, setReturnStatus] = useState<string | null>(null);
   const [lastOrderId, setLastOrderId] = useState<number | null>(null);
 
@@ -374,6 +374,8 @@ useEffect(() => {
       if (user) {
         try {
           const { data } = await api.get('/api/store/cart');
+          await fetchWishlist();
+
           
           if (data && data.items) {
             // 🎨 MAPA MAESTRO DE COLORES (Sincronizado con Backend)
@@ -440,12 +442,14 @@ useEffect(() => {
             });
 
             setCart(savedItems);
+            
           }
         } catch (err) {
           console.error("Error sincronizando carrito:", err);
         }
       } else {
         setCart([]);
+        setLocalWishlist([]);
       }
     };
 
@@ -488,15 +492,27 @@ useEffect(() => {
 
   // --- HANDLERS (FUNCIONES DE LA APP) ---
 
+  const fetchWishlist = async () => {
+  try {
+    const { data } = await api.get('/api/store/wishlist');
+    setLocalWishlist(data?.items || data || []);
+  } catch (e) {
+    console.error("Error cargando wishlist:", e);
+  }
+};
+
+
   const showToast = (message: string, title?: string) => { 
     setToast({ message, title, visible: true }); 
     setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000); 
   };
 
   const handleAuthSuccess = () => { 
-    setIsAuthModalOpen(false); 
-    showToast(t('toast_welcome_sub'), t('toast_welcome')); 
-  };
+  setIsAuthModalOpen(false); 
+  fetchWishlist();
+  showToast(t('toast_welcome_sub'), t('toast_welcome')); 
+};
+
 
   const handleLogout = () => { 
     logout(); 
@@ -527,22 +543,27 @@ useEffect(() => {
     } 
   };
 
-  const handleToggleWishlist = (product: Product) => { 
-    if (!user) { 
-      setAuthMode('login'); 
-      setIsAuthModalOpen(true); 
-      showToast(t('wishlist_login_required'), t('toast_info')); 
-      return; 
-    } 
-    const exists = localWishlist.find(item => item.id === product.id); 
-    if (exists) { 
-      setLocalWishlist(prev => prev.filter(item => item.id !== product.id)); 
-      showToast(t('wishlist_removed'), t('toast_info')); 
-    } else { 
-      setLocalWishlist(prev => [...prev, product]); 
-      showToast(t('wishlist_added'), t('toast_info')); 
-    } 
-  };
+  const handleToggleWishlist = async (product: Product, variantId: number) => {
+  if (!user) {
+    setAuthMode('login');
+    setIsAuthModalOpen(true);
+    showToast(t('wishlist_login_required'), t('toast_info'));
+    return;
+  }
+
+  try {
+    const { data } = await api.post('/api/store/wishlist/toggle', {
+      productId: Number(product.id),
+      variantId: Number(variantId),
+    });
+
+    await fetchWishlist();
+    showToast(data?.action === 'added' ? t('wishlist_added') : t('wishlist_removed'), t('toast_info'));
+  } catch (e) {
+    console.error("Error toggle wishlist:", e);
+  }
+};
+
 
 
   const commitAddToCart = async (product: Product, color?: ColorOption, size?: string, quantity: number = 1) => {
@@ -790,7 +811,15 @@ useEffect(() => {
                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
                  {filteredProducts.length > 0 ? (
                    filteredProducts.map(p => (
-                     <ProductCard key={p.id} product={p} onAdd={handleAddToCartRequest} isWishlisted={localWishlist.some(i => i.id === p.id)} onToggleWishlist={() => handleToggleWishlist(p)} onOpenDetails={(product, color) => { setSelectedProduct(product); setInitialModalColor(color);}} />
+                     <ProductCard
+  key={p.id}
+  product={p}
+  onAdd={handleAddToCartRequest}
+  wishlist={localWishlist}
+  onToggleWishlist={(variantId) => handleToggleWishlist(p, variantId)}
+  onOpenDetails={(product, color) => { setSelectedProduct(product); setInitialModalColor(color);}}
+/>
+
                    ))
                  ) : (
                    <div className="col-span-full flex flex-col items-center justify-center text-center py-48 px-4 border-2 border-dashed border-stone-200 rounded-lg bg-stone-50/50">
