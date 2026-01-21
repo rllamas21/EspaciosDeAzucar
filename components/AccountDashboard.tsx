@@ -11,7 +11,7 @@ interface AccountDashboardProps {
   user: UserType;
   onLogout: () => void;
   t: (key: string) => string;
-  onRemoveFromWishlist: (productId: string) => void;
+  onRemoveFromWishlist: (productId: string) => void; // Prop para actualizar estado global si es necesario
   onAddToCart: (product: Product, color?: any, quantity?: number) => void;
   onNavigate?: (view: 'home') => void;
 }
@@ -123,8 +123,13 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
   // Data States
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
+
+  // NUEVO: Estado para Wishlist real
+  const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
+  const [loadingWishlist, setLoadingWishlist] = useState(false);
 
   // Address Form States
   const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
@@ -144,6 +149,7 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
   useEffect(() => {
     if (activeTab === 'orders') fetchOrders();
     if (activeTab === 'addresses') fetchAddresses();
+    if (activeTab === 'wishlist') fetchWishlist(); // <--- Cargar wishlist al abrir tab
   }, [activeTab]);
 
   const fetchOrders = async () => {
@@ -160,6 +166,32 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
       const { data } = await api.get('/api/store/addresses');
       setAddresses(data || []);
     } catch (err) { console.error(err); } finally { setLoadingAddresses(false); }
+  };
+
+  // NUEVO: Función para cargar la wishlist real
+  const fetchWishlist = async () => {
+    setLoadingWishlist(true);
+    try {
+      const { data } = await api.get('/api/store/wishlist');
+      setWishlistItems(data || []);
+    } catch (err) { console.error(err); } 
+    finally { setLoadingWishlist(false); }
+  };
+
+  // NUEVO: Función para borrar de la wishlist real
+  const handleRemoveItemFromWishlist = async (productId: string) => {
+    try {
+        // 1. Borrar en backend
+        await api.delete(`/api/store/wishlist/${productId}`);
+        
+        // 2. Actualizar estado local (optimista)
+        setWishlistItems(prev => prev.filter(item => item.id !== productId));
+        
+        // 3. Notificar al padre (por si tienes un contador en el header)
+        onRemoveFromWishlist(productId);
+    } catch (error) {
+        console.error("Error eliminando de wishlist", error);
+    }
   };
 
   // Address Handlers
@@ -266,10 +298,10 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                     const BadgeIcon = badge.icon;
                     return (
                       <div key={order.id} className="bg-white border border-stone-200 rounded-sm hover:border-stone-300 transition-colors">
-                         {/* Header Corregido: Estilo normal y serio, sin serif */}
+                         {/* Header Corregido */}
                          <div className="px-6 py-4 flex flex-wrap justify-between items-center gap-4 border-b border-stone-100">
                             <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-   <span className="font-bold text-sm text-stone-900">Pedido #{order.id}</span>
+                               <span className="font-bold text-sm text-stone-900">Pedido #{order.id}</span>
                                <span className="text-sm text-stone-400 font-light">{new Date(order.created_at).toLocaleDateString()}</span>
                             </div>
                             <div className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold border flex items-center gap-2 ${badge.color}`}>
@@ -277,7 +309,7 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                             </div>
                          </div>
 
-                         {/* Items con funcionalidad de ZOOM (Lightbox) */}
+                         {/* Items con Lightbox */}
                          <div className="p-6 flex flex-col gap-4">
                             {order.items.map((item: any, idx: number) => {
                                let opts: any = {};
@@ -311,7 +343,6 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                                           </div>
                                           {variantText && <p className="text-sm text-stone-500">{variantText}</p>}
                                           
-                                          {/* Precio corregido: 1 und - $10 */}
                                           <p className="text-sm text-stone-500 mt-1">
                                              1 und - <span className="font-bold text-stone-900">${Number(item.unit_price).toLocaleString()}</span>
                                           </p>
@@ -394,13 +425,26 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
         return (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
              <h3 className="font-serif text-2xl text-stone-900 mb-6">{t('account_wishlist')}</h3>
-             {user.wishlist.length > 0 ? (
+             {loadingWishlist ? (
+               <div className="py-12 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-stone-300" /></div>
+             ) : wishlistItems.length > 0 ? (
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 {user.wishlist.map((item) => (
-                   <WishlistItem key={item.id} item={item} onRemove={onRemoveFromWishlist} onAddToCart={(itm, qty) => onAddToCart(itm, undefined, qty)} t={t} />
+                 {wishlistItems.map((item) => (
+                   <WishlistItem 
+                      key={item.id} 
+                      item={item} 
+                      onRemove={handleRemoveItemFromWishlist} 
+                      onAddToCart={(itm, qty) => onAddToCart(itm, undefined, qty)} 
+                      t={t} 
+                   />
                  ))}
                </div>
-             ) : <div className="text-center py-20 bg-stone-50 border border-stone-100 border-dashed"><Heart className="w-8 h-8 mx-auto text-stone-300 mb-4" /><p className="text-stone-500">Aún no has guardado piezas de inspiración.</p></div>}
+             ) : (
+                <div className="text-center py-20 bg-stone-50 border border-stone-100 border-dashed">
+                    <Heart className="w-8 h-8 mx-auto text-stone-300 mb-4" />
+                    <p className="text-stone-500">Aún no has guardado piezas de inspiración.</p>
+                </div>
+             )}
           </div>
         );
 
