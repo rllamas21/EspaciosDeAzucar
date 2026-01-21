@@ -24,8 +24,6 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
   // Guardamos el ID de la orden creada para pasárselo al Brick
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
   const [createdOrderTotal, setCreatedOrderTotal] = useState<number>(0);
-  const [clientId, setClientId] = useState<number | string | null>(null);
-
   const [isMpActive, setIsMpActive] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
 
@@ -54,7 +52,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
   try {
     setLoadingConfig(true);
 
-    const { data } = await api.get('/api/store/auth/config');
+    const { data } = await api.get('/api/store/config');
     const bankTransfer = data?.paymentMethods?.bank_transfer || null;
     setBankDetails(bankTransfer);
 
@@ -68,8 +66,6 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
     if (mpActive) setMethod('mercadopago');
     else if (bankActive) setMethod('transfer');
     else setMethod('transfer'); // fallback
-
-    if (data.clientId) setClientId(data.clientId);
 
   } catch (error) {
     console.error("Error cargando configuración", error);
@@ -144,11 +140,10 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
       };
       
       const orderRes = await api.post('/api/store/checkout', orderPayload);
-      const { orderId, clientId: respClientId } = orderRes.data; 
+      const { orderId } = orderRes.data;
       
       setCreatedOrderId(orderId);
       setCreatedOrderTotal(finalTotal);
-      if (respClientId) setClientId(respClientId);
 
       if (method === 'mercadopago') {
   window.location.href = orderRes.data.checkoutUrl;
