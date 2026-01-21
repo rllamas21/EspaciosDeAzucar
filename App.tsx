@@ -361,7 +361,14 @@ useEffect(() => {
   }
 }, []);
 
-
+// --- 🔥 NUEVO: CARGAR WISHLIST AL INICIAR SESIÓN ---
+  useEffect(() => {
+    if (user && !authLoading) {
+        api.get('/api/store/wishlist')
+           .then(res => setLocalWishlist(res.data || []))
+           .catch(err => console.error("Error cargando wishlist", err));
+    }
+  }, [user, authLoading]);
 
 
   
@@ -527,14 +534,16 @@ useEffect(() => {
     } 
   };
 
-  const handleToggleWishlist = (product: Product) => { 
+  const handleToggleWishlist = async (product: Product) => { 
     if (!user) { 
-      setAuthMode('login'); 
-      setIsAuthModalOpen(true); 
-      showToast(t('wishlist_login_required'), t('toast_info')); 
-      return; 
-    } 
-    const exists = localWishlist.find(item => item.id === product.id); 
+  setAuthMode('login'); 
+  setIsAuthModalOpen(true); 
+  showToast(t('wishlist_login_required'), t('toast_info')); 
+  return; 
+}
+    
+    // 1. Cambio Visual Inmediato (Optimista)
+    const exists = localWishlist.some(item => item.id === product.id); 
     if (exists) { 
       setLocalWishlist(prev => prev.filter(item => item.id !== product.id)); 
       showToast(t('wishlist_removed'), t('toast_info')); 
@@ -542,6 +551,13 @@ useEffect(() => {
       setLocalWishlist(prev => [...prev, product]); 
       showToast(t('wishlist_added'), t('toast_info')); 
     } 
+
+    // 2. 🔥 NUEVO: Guardar en Base de Datos (Silencioso)
+    try {
+        await api.post('/api/store/wishlist/toggle', { productId: product.id });
+    } catch (error) {
+        console.error("Error guardando wishlist en servidor", error);
+    }
   };
 
 
@@ -733,7 +749,7 @@ useEffect(() => {
     user={{ ...user, role: 'client', wishlist: localWishlist, addresses: [], orders: [] }} 
     onLogout={handleLogout} 
     t={t} 
-    onRemoveFromWishlist={() => {}} 
+    onRemoveFromWishlist={(id) => setLocalWishlist(prev => prev.filter(i => i.id !== id))} 
     onAddToCart={handleAddToCartRequest} 
     onAddressSave={() => {}} 
     onAddressDelete={() => {}} 
