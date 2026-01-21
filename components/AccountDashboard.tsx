@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Package, MapPin, Heart, LogOut, ChevronRight, User as UserIcon, Trash2, Plus, Minus, ArrowLeft, Loader2, CheckCircle, Clock, XCircle, ChevronLeft, Star, X, ZoomIn } from 'lucide-react';
+import { Package, MapPin, Heart, LogOut, ChevronRight, User as UserIcon, Trash2, Plus, Minus, ArrowLeft, Loader2, CheckCircle, Clock, XCircle, ChevronLeft, Star, X, ZoomIn, AlertCircle } from 'lucide-react';
 import { Product, User as UserType, Address } from '../types';
 import api from '../lib/api';
 
@@ -11,7 +11,7 @@ interface AccountDashboardProps {
   user: UserType;
   onLogout: () => void;
   t: (key: string) => string;
-  onRemoveFromWishlist: (productId: string) => void; // Prop para actualizar estado global si es necesario
+  onRemoveFromWishlist: (productId: string) => void;
   onAddToCart: (product: Product, color?: any, quantity?: number) => void;
   onNavigate?: (view: 'home') => void;
 }
@@ -77,39 +77,63 @@ const ConfirmModal: React.FC<{
   );
 };
 
-// --- ITEM WISHLIST ---
+// --- ITEM WISHLIST (MEJORADO CON STOCK) ---
 const WishlistItem: React.FC<{
-  item: Product;
+  item: any; // Usamos 'any' para aceptar la propiedad 'stock' que viene del backend nuevo
   onRemove: (id: string) => void;
   onAddToCart: (item: Product, quantity: number) => void;
   t: (key: string) => string;
 }> = ({ item, onRemove, onAddToCart, t }) => {
   const [quantity, setQuantity] = useState(1);
+  
+  // Lógica de Stock: Si no viene el dato, asumimos 0 por seguridad
+  const hasStock = (item.stock || 0) > 0;
+
   return (
     <div className="flex gap-4 p-4 border border-stone-100 bg-white hover:border-stone-200 transition-colors group relative rounded-sm">
        <button onClick={(e) => { e.stopPropagation(); onRemove(item.id); }} className="absolute top-3 right-3 p-1.5 text-stone-300 hover:text-red-600 hover:bg-red-50 rounded-full transition-all z-10" title="Eliminar">
           <Trash2 className="w-4 h-4" />
        </button>
-       <div className="w-24 h-24 bg-stone-100 flex-shrink-0 overflow-hidden rounded-sm">
-         <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" />
+       
+       <div className="w-24 h-24 bg-stone-100 flex-shrink-0 overflow-hidden rounded-sm relative">
+         {/* Imagen con efecto gris si no hay stock */}
+         <img src={item.image} alt={item.name} className={`w-full h-full object-cover transition-transform group-hover:scale-105 duration-500 ${!hasStock ? 'opacity-50 grayscale' : ''}`} />
+         
+         {/* Etiqueta de Agotado */}
+         {!hasStock && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                <span className="text-[9px] font-bold uppercase tracking-widest bg-stone-900 text-white px-2 py-1 rounded-sm">Agotado</span>
+            </div>
+         )}
        </div>
+
        <div className="flex flex-col justify-between py-1 flex-1">
          <div>
            <p className="text-[10px] uppercase tracking-widest text-stone-400">{item.category}</p>
            <h4 className="font-serif text-lg text-stone-900 leading-tight pr-8">{item.name}</h4>
          </div>
+         
          <div className="flex justify-between items-end gap-2">
             <span className="text-sm font-medium hidden md:block">${item.price.toLocaleString()}</span>
-            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-               <div className="flex items-center border border-stone-200 rounded-full h-7 px-1">
-                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-1 hover:text-stone-900 text-stone-400"><Minus className="w-3 h-3" /></button>
-                 <span className="text-xs font-medium w-5 text-center">{quantity}</span>
-                 <button onClick={() => setQuantity(quantity + 1)} className="p-1 hover:text-stone-900 text-stone-400"><Plus className="w-3 h-3" /></button>
-               </div>
-               <button onClick={(e) => { e.stopPropagation(); onAddToCart(item, quantity); }} className="bg-stone-900 text-white text-[10px] uppercase tracking-widest px-3 py-1.5 rounded hover:bg-stone-700 transition-colors">
-                 Agregar
-               </button>
-            </div>
+            
+            {/* Solo mostramos el botón de agregar si hay stock */}
+            {hasStock ? (
+                <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+                   <div className="flex items-center border border-stone-200 rounded-full h-7 px-1">
+                     <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-1 hover:text-stone-900 text-stone-400"><Minus className="w-3 h-3" /></button>
+                     <span className="text-xs font-medium w-5 text-center">{quantity}</span>
+                     <button onClick={() => setQuantity(quantity + 1)} className="p-1 hover:text-stone-900 text-stone-400"><Plus className="w-3 h-3" /></button>
+                   </div>
+                   <button onClick={(e) => { e.stopPropagation(); onAddToCart(item, quantity); }} className="bg-stone-900 text-white text-[10px] uppercase tracking-widest px-3 py-1.5 rounded hover:bg-stone-700 transition-colors">
+                     Agregar
+                   </button>
+                </div>
+            ) : (
+                // Texto de alerta si no hay stock
+                <span className="text-xs text-red-500 font-medium flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" /> Sin Stock
+                </span>
+            )}
          </div>
        </div>
     </div>
@@ -123,12 +147,11 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
   // Data States
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
-  
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
 
   // NUEVO: Estado para Wishlist real
-  const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<any[]>([]);
   const [loadingWishlist, setLoadingWishlist] = useState(false);
 
   // Address Form States
@@ -149,7 +172,7 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
   useEffect(() => {
     if (activeTab === 'orders') fetchOrders();
     if (activeTab === 'addresses') fetchAddresses();
-    if (activeTab === 'wishlist') fetchWishlist(); // <--- Cargar wishlist al abrir tab
+    if (activeTab === 'wishlist') fetchWishlist(); // <--- Cargar wishlist real al abrir tab
   }, [activeTab]);
 
   const fetchOrders = async () => {
@@ -168,14 +191,13 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
     } catch (err) { console.error(err); } finally { setLoadingAddresses(false); }
   };
 
-  // NUEVO: Función para cargar la wishlist real
+  // NUEVO: Función para cargar la wishlist de la BD
   const fetchWishlist = async () => {
     setLoadingWishlist(true);
     try {
       const { data } = await api.get('/api/store/wishlist');
       setWishlistItems(data || []);
-    } catch (err) { console.error(err); } 
-    finally { setLoadingWishlist(false); }
+    } catch (err) { console.error(err); } finally { setLoadingWishlist(false); }
   };
 
   // NUEVO: Función para borrar de la wishlist real
@@ -183,15 +205,11 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
     try {
         // 1. Borrar en backend
         await api.delete(`/api/store/wishlist/${productId}`);
-        
         // 2. Actualizar estado local (optimista)
         setWishlistItems(prev => prev.filter(item => item.id !== productId));
-        
-        // 3. Notificar al padre (por si tienes un contador en el header)
+        // 3. Notificar al padre para actualizar el contador del header
         onRemoveFromWishlist(productId);
-    } catch (error) {
-        console.error("Error eliminando de wishlist", error);
-    }
+    } catch (error) { console.error(error); }
   };
 
   // Address Handlers
