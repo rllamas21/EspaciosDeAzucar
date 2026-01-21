@@ -534,30 +534,24 @@ useEffect(() => {
     } 
   };
 
-  const handleToggleWishlist = async (product: Product) => { 
-    if (!user) { 
-  setAuthMode('login'); 
-  setIsAuthModalOpen(true); 
-  showToast(t('wishlist_login_required'), t('toast_info')); 
-  return; 
-}
+  const handleToggleWishlist = async (product: Product, variantId?: number) => { 
+    if (!user) { /* ... login logic ... */ return; } 
     
-    // 1. Cambio Visual Inmediato (Optimista)
+    // UI Optimista (usamos id del producto para el corazón rojo general)
     const exists = localWishlist.some(item => item.id === product.id); 
     if (exists) { 
       setLocalWishlist(prev => prev.filter(item => item.id !== product.id)); 
-      showToast(t('wishlist_removed'), t('toast_info')); 
     } else { 
       setLocalWishlist(prev => [...prev, product]); 
-      showToast(t('wishlist_added'), t('toast_info')); 
     } 
 
-    // 2. 🔥 NUEVO: Guardar en Base de Datos (Silencioso)
     try {
-        await api.post('/api/store/wishlist/toggle', { productId: product.id });
-    } catch (error) {
-        console.error("Error guardando wishlist en servidor", error);
-    }
+        // 🔥 ENVIAMOS EL VARIANT ID AL BACKEND
+        await api.post('/api/store/wishlist/toggle', { 
+            productId: product.id, 
+            variantId: variantId 
+        });
+    } catch (error) { console.error(error); }
   };
 
 

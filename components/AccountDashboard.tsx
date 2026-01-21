@@ -12,7 +12,7 @@ interface AccountDashboardProps {
   onLogout: () => void;
   t: (key: string) => string;
   onRemoveFromWishlist: (productId: string) => void;
-  onAddToCart: (product: Product, color?: any, quantity?: number) => void;
+  onAddToCart: (product: Product, color?: any, quantity?: number, variantId?: number) => void;
   onNavigate?: (view: 'home') => void;
 }
 
@@ -124,9 +124,11 @@ const WishlistItem: React.FC<{
                      <span className="text-xs font-medium w-5 text-center">{quantity}</span>
                      <button onClick={() => setQuantity(quantity + 1)} className="p-1 hover:text-stone-900 text-stone-400"><Plus className="w-3 h-3" /></button>
                    </div>
-                   <button onClick={(e) => { e.stopPropagation(); onAddToCart(item, quantity); }} className="bg-stone-900 text-white text-[10px] uppercase tracking-widest px-3 py-1.5 rounded hover:bg-stone-700 transition-colors">
+                   <button onClick={(e) => { e.stopPropagation(); onAddToCart(item, undefined, quantity, item.selectedVariantId);}} className="bg-stone-900 text-white text-[10px] uppercase tracking-widest px-3 py-1.5 rounded hover:bg-stone-700 transition-colors">
                      Agregar
                    </button>
+
+                   
                 </div>
             ) : (
                 // Texto de alerta si no hay stock
@@ -451,8 +453,8 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                    <WishlistItem 
                       key={item.id} 
                       item={item} 
-                      onRemove={handleRemoveItemFromWishlist} 
-                      onAddToCart={(itm, qty) => onAddToCart(itm, undefined, qty)} 
+                      onRemove={handleRemoveItemFromWishlist}                    
+                      onAddToCart={(itm, qty) => onAddToCart(itm, undefined, qty, itm.selectedVariantId)}
                       t={t} 
                    />
                  ))}
