@@ -492,26 +492,53 @@ useEffect(() => {
 
   // --- HANDLERS (FUNCIONES DE LA APP) ---
 
-  const fetchWishlist = async () => {
+ const fetchWishlist = async () => {
   try {
     const { data } = await api.get('/api/store/wishlist');
-    setLocalWishlist(data?.items || data || []);
+    const rows = (data?.items || data || []) as any[];
+
+    const mapped = rows.map((w: any) => {
+      const selectedVariantId = Number(w.variant_id ?? w.variantId ?? w.selectedVariantId);
+
+      let opts: any = {};
+      try {
+        opts =
+          typeof w.fixed_variant_options === "string"
+            ? JSON.parse(w.fixed_variant_options)
+            : (w.fixed_variant_options || w.variant_options || {});
+      } catch {}
+
+      return {
+        id: String(w.product_id ?? w.productId ?? w.id),
+        selectedVariantId,
+        name: w.fixed_product_name ?? w.product_name ?? w.name,
+        category: w.category ?? w.fixed_category_name ?? '',
+        price: Number(w.unit_price_snapshot ?? w.price ?? 0),
+        image: w.fixed_image_snapshot ?? w.image ?? '',
+        selectedColor: opts?.Color ? { name: opts.Color, hex: '#E5E7EB' } : undefined,
+        selectedSize: opts?.Talla || opts?.Medida || opts?.Size || opts?.size,
+      };
+    });
+
+    setLocalWishlist(mapped);
   } catch (e) {
     console.error("Error cargando wishlist:", e);
   }
 };
 
-const handleRemoveFromWishlist = async (productId: string, variantId: number) => {
+
+const handleRemoveFromWishlist = async (variantId: number) => {
   if (!user) return;
 
   try {
-    await api.delete(`/api/store/wishlist/${productId}?variantId=${variantId}`);
+    await api.delete(`/api/store/wishlist/${variantId}`);
     await fetchWishlist();
     showToast(t('wishlist_removed'), t('toast_info'));
   } catch (e) {
     console.error("Error remove wishlist:", e);
   }
 };
+
 
 
 
