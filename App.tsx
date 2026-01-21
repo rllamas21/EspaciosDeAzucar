@@ -501,6 +501,19 @@ useEffect(() => {
   }
 };
 
+const handleRemoveFromWishlist = async (productId: string, variantId: number) => {
+  if (!user) return;
+
+  try {
+    await api.delete(`/api/store/wishlist/${productId}?variantId=${variantId}`);
+    await fetchWishlist();
+    showToast(t('wishlist_removed'), t('toast_info'));
+  } catch (e) {
+    console.error("Error remove wishlist:", e);
+  }
+};
+
+
 
   const showToast = (message: string, title?: string) => { 
     setToast({ message, title, visible: true }); 
@@ -754,7 +767,7 @@ useEffect(() => {
     user={{ ...user, role: 'client', wishlist: localWishlist, addresses: [], orders: [] }} 
     onLogout={handleLogout} 
     t={t} 
-    onRemoveFromWishlist={() => {}} 
+    onRemoveFromWishlist={handleRemoveFromWishlist}
     onAddToCart={handleAddToCartRequest} 
     onAddressSave={() => {}} 
     onAddressDelete={() => {}} 

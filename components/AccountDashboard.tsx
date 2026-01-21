@@ -11,7 +11,7 @@ interface AccountDashboardProps {
   user: UserType;
   onLogout: () => void;
   t: (key: string) => string;
-  onRemoveFromWishlist: (productId: string) => void;
+  onRemoveFromWishlist: (productId: string, variantId: number) => void;
   onAddToCart: (product: Product, color?: any, size?: string, quantity?: number) => void;
   onNavigate?: (view: 'home') => void;
 }
@@ -80,16 +80,25 @@ const ConfirmModal: React.FC<{
 // --- ITEM WISHLIST ---
 const WishlistItem: React.FC<{
   item: Product;
-  onRemove: (id: string) => void;
+  onRemove: (productId: string, variantId: number) => void;
   onAddToCart: (item: Product, quantity: number) => void;
   t: (key: string) => string;
 }> = ({ item, onRemove, onAddToCart, t }) => {
   const [quantity, setQuantity] = useState(1);
   return (
     <div className="flex gap-4 p-4 border border-stone-100 bg-white hover:border-stone-200 transition-colors group relative rounded-sm">
-       <button onClick={(e) => { e.stopPropagation(); onRemove(item.id); }} className="absolute top-3 right-3 p-1.5 text-stone-300 hover:text-red-600 hover:bg-red-50 rounded-full transition-all z-10" title="Eliminar">
-          <Trash2 className="w-4 h-4" />
-       </button>
+       <button
+  onClick={(e) => {
+    e.stopPropagation();
+    const variantId = Number((item as any).selectedVariantId);
+    onRemove(String(item.id), variantId);
+  }}
+  className="absolute top-3 right-3 p-1.5 text-stone-300 hover:text-red-600 hover:bg-red-50 rounded-full transition-all z-10"
+  title="Eliminar"
+>
+  <Trash2 className="w-4 h-4" />
+</button>
+
        <div className="w-24 h-24 bg-stone-100 flex-shrink-0 overflow-hidden rounded-sm">
          <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" />
        </div>
@@ -396,9 +405,16 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
              <h3 className="font-serif text-2xl text-stone-900 mb-6">{t('account_wishlist')}</h3>
              {user.wishlist.length > 0 ? (
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 {user.wishlist.map((item) => (
-                   <WishlistItem key={item.id} item={item} onRemove={onRemoveFromWishlist} onAddToCart={(itm, qty) => onAddToCart(itm, undefined, undefined, qty)} t={t}/>
-                 ))}
+                 {user.wishlist.map((item: any) => (
+  <WishlistItem
+    key={`${item.id}-${item.selectedVariantId}`}
+    item={item}
+    onRemove={onRemoveFromWishlist}
+    onAddToCart={(itm, qty) => onAddToCart(itm, undefined, qty)}
+    t={t}
+  />
+))}
+
                </div>
              ) : <div className="text-center py-20 bg-stone-50 border border-stone-100 border-dashed"><Heart className="w-8 h-8 mx-auto text-stone-300 mb-4" /><p className="text-stone-500">Aún no has guardado piezas de inspiración.</p></div>}
           </div>
