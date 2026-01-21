@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { X, CreditCard, Building2, Check, Loader2, MapPin, User, Phone, ArrowRight, AlertCircle, ShieldCheck, Copy, ArrowLeft } from 'lucide-react';
-import PaymentBrick from '../pages/PaymentBrick'; 
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -13,11 +12,10 @@ interface CheckoutModalProps {
 }
 
 type PaymentMethod = 'mercadopago' | 'transfer';
-type CheckoutStep = 'data' | 'payment'; // Nuevo: Controla si estamos llenando datos o pagando
+
 
 const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturnToShop, total, onClearCart, cart }) => {
   const [method, setMethod] = useState<PaymentMethod>('transfer');
-  const [step, setStep] = useState<CheckoutStep>('data'); // Empezamos en "datos"
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successTransfer, setSuccessTransfer] = useState(false);
@@ -31,6 +29,15 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
   const [isMpActive, setIsMpActive] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
 
+  const [bankDetails, setBankDetails] = useState<null | {
+  isActive: boolean;
+  bank?: string;
+  cbu?: string;
+  alias?: string;
+  holder?: string;
+}>(null);
+
+
   // Bloqueo de scroll y Carga de Configuración
   useEffect(() => {
     if (isOpen) {
@@ -38,33 +45,42 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
       fetchStoreConfig();
     } else {
       document.body.style.overflow = 'unset';
-      setStep('data'); // Reset al cerrar
       setCreatedOrderId(null);
     }
     return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
 
   const fetchStoreConfig = async () => {
-    try {
-      setLoadingConfig(true);
-      const { data } = await api.get('/api/store/auth/config');
-      setIsMpActive(data.mercadopago_active);
-      if (data.mercadopago_active) {
-        setMethod('mercadopago');
-      } else {
-        setMethod('transfer');
-      }
-      // Si el backend devuelve el clientId, guárdalo aquí también
-      if (data.clientId) setClientId(data.clientId); 
+  try {
+    setLoadingConfig(true);
 
-    } catch (error) {
-      console.error("Error cargando configuración", error);
-      setIsMpActive(false);
-      setMethod('transfer');
-    } finally {
-      setLoadingConfig(false);
-    }
-  };
+    const { data } = await api.get('/api/store/auth/config');
+    const bankTransfer = data?.paymentMethods?.bank_transfer || null;
+    setBankDetails(bankTransfer);
+
+
+    const mpActive = !!data?.paymentMethods?.mercadopago?.isActive;
+    const bankActive = !!data?.paymentMethods?.bank_transfer?.isActive;
+
+    setIsMpActive(mpActive);
+
+    // método por defecto: MP si está activo, sino transferencia si está activa
+    if (mpActive) setMethod('mercadopago');
+    else if (bankActive) setMethod('transfer');
+    else setMethod('transfer'); // fallback
+
+    if (data.clientId) setClientId(data.clientId);
+
+  } catch (error) {
+    console.error("Error cargando configuración", error);
+    setIsMpActive(false);
+    setMethod('transfer');
+    setBankDetails(null);
+  } finally {
+    setLoadingConfig(false);
+  }
+};
+
 
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', dni: '', phone: '',
@@ -75,16 +91,21 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
 
   const discount = method === 'transfer' ? total * 0.10 : 0;
   const finalTotal = total - discount;
+  const isBankActive = !!bankDetails?.isActive;
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleCopyCBU = () => {
-      navigator.clipboard.writeText('0070089420000012345678');
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-  };
+  const cbu = bankDetails?.cbu || "";
+  if (!cbu) return;
+  navigator.clipboard.writeText(cbu);
+  setCopied(true);
+  setTimeout(() => setCopied(false), 2000);
+};
+
 
   // PASO 1: CREAR LA ORDEN (Para ambos métodos)
   const handleCreateOrder = async (e: React.FormEvent) => {
@@ -130,9 +151,10 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
       if (respClientId) setClientId(respClientId);
 
       if (method === 'mercadopago') {
-        // SI ES MP: Avanzamos al paso 2 (Mostrar Brick)
-        setStep('payment');
-      } else {
+  window.location.href = orderRes.data.checkoutUrl;
+  return;
+}
+ else {
         // SI ES TRANSFERENCIA: Mostramos éxito directo
         setSuccessTransfer(true);
         onClearCart(); 
@@ -162,7 +184,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
               <div className="flex justify-between items-center border-b border-stone-100 pb-2">
                 <div>
                     <span className="text-[10px] uppercase tracking-widest text-stone-400 block">CBU</span>
-                    <p className="font-mono text-stone-800 font-medium text-sm sm:text-base break-all">0070089420000012345678</p>
+                    <p className="font-mono text-stone-800 font-medium text-sm sm:text-base break-all">{bankDetails?.cbu || "No configurado"}</p>
                 </div>
                 <button onClick={handleCopyCBU} className="p-2 ml-2 hover:bg-stone-200 rounded transition-colors text-stone-500 bg-white border border-stone-100 shadow-sm">
                     {copied ? <Check className="w-4 h-4 text-green-600"/> : <Copy className="w-4 h-4"/>}
@@ -171,11 +193,11 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
               <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-[10px] uppercase tracking-widest text-stone-400 block">Alias</span>
-                    <p className="font-mono text-stone-800 font-medium text-sm">ESPACIOS.AZUCAR.AR</p>
+                    <p className="font-mono text-stone-800 font-medium text-sm">{bankDetails?.alias || "No configurado"}</p>
                   </div>
                   <div>
                     <span className="text-[10px] uppercase tracking-widest text-stone-400 block">Banco</span>
-                    <p className="text-stone-800 font-medium text-sm">Banco Galicia</p>
+                    <p className="text-stone-800 font-medium text-sm">{bankDetails?.bank || "No configurado"}</p>
                   </div>
               </div>
            </div>
@@ -196,29 +218,12 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
         <div className="flex-1 flex flex-col overflow-hidden bg-white md:border-r border-stone-200">
             <div className="p-3 pt-2 md:p-6 border-b border-stone-100 flex justify-between items-center bg-white">
                <h2 className="font-serif text-xl text-stone-900">
-                 {step === 'payment' ? 'Pago Seguro' : 'Finalizar Compra'}
+                 Finalizar Compra
                </h2>
                <button onClick={onClose} className="md:hidden p-1 -mr-1 text-stone-400 hover:bg-stone-100 rounded-full"><X className="w-5 h-5"/></button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-                
-                {/* 🧱 PASO 2: FORMULARIO DE PAGO (BRICK) */}
-                {step === 'payment' && createdOrderId ? (
-                    <div className="animate-in fade-in slide-in-from-right duration-300">
-                        <button onClick={() => setStep('data')} className="text-xs text-stone-500 hover:text-stone-800 mb-4 flex items-center gap-1">
-                            <ArrowLeft className="w-3 h-3" /> Volver a mis datos
-                        </button>
-                        
-                        {/* AQUÍ INCRUSTAMOS EL BRICK */}
-                        <PaymentBrick 
-                            orderTotal={createdOrderTotal} 
-                            orderId={createdOrderId} 
-                            clientId={clientId || 7} // Fallback a 7 si falla
-                        />
-                    </div>
-                ) : (
-                    /* 📝 PASO 1: DATOS PERSONALES Y MÉTODO */
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">                  
                     <>
                         {loadingConfig ? (
                             <div className="flex justify-center p-4"><Loader2 className="animate-spin text-stone-400" /></div>
@@ -234,6 +239,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
                                         <span className="text-[10px] md:text-xs font-bold uppercase text-center">Mercado Pago</span>
                                     </button>
                                 )}
+                                {isBankActive && (
                                 <button 
                                     type="button" 
                                     onClick={() => setMethod('transfer')} 
@@ -243,6 +249,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
                                     <Building2 className="w-5 h-5 md:w-6 md:h-6" />
                                     <span className="text-[10px] md:text-xs font-bold uppercase text-center">Transferencia</span>
                                 </button>
+                                )}
                             </div>
                         )}
 
@@ -277,7 +284,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
                             </div>
                         </form>
                     </>
-                )}
+                
             </div>
         </div>
 
@@ -297,14 +304,14 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onReturn
            </div>
 
            {/* BOTÓN PRINCIPAL (Solo visible en Paso 1) */}
-           {step === 'data' && (
+          
                <div className="p-4 md:p-6 bg-white border-t border-stone-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] md:shadow-none z-20">
                   <button onClick={handleCreateOrder} disabled={loading || loadingConfig} className={`w-full h-14 md:h-12 flex items-center justify-center gap-2 uppercase tracking-widest text-xs font-bold text-white transition-all md:rounded-sm ${loading ? 'bg-stone-400 cursor-wait' : 'bg-stone-900 hover:bg-stone-800 shadow-md active:scale-[0.98]'}`}>
                     {loading ? (<><Loader2 className="w-4 h-4 animate-spin"/> Procesando...</>) : (<>{method === 'mercadopago' ? 'Continuar al Pago' : 'Confirmar Reserva'} <ArrowRight className="w-4 h-4"/></>)}
                   </button>
                   {method === 'mercadopago' && (<p className="text-[10px] text-center text-stone-400 mt-3 flex items-center justify-center gap-1"><ShieldCheck className="w-3 h-3"/> Pagarás en el siguiente paso</p>)}
                </div>
-           )}
+      
         </div>
       </div>
       <style>{`.input-base { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #e7e5e4; border-radius: 4px; outline: none; transition: all 0.2s; background-color: #fff; } .input-base:focus { border-color: #1c1917; box-shadow: 0 0 0 1px #1c1917; } @media (min-width: 768px) { .input-base { padding: 10px; font-size: 0.875rem; border-radius: 2px; } }`}</style>
