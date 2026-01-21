@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Package, MapPin, Heart, LogOut, ChevronRight, User as UserIcon, Trash2, Plus, Minus, ArrowLeft, Loader2, CheckCircle, Clock, XCircle, ChevronLeft, Star, X, ZoomIn, AlertCircle } from 'lucide-react';
+import { Package, MapPin, Heart, LogOut, ChevronRight, User as UserIcon, Trash2, Plus, Minus, ArrowLeft, Loader2, CheckCircle, Clock, XCircle, ChevronLeft, Star, X, ZoomIn } from 'lucide-react';
 import { Product, User as UserType, Address } from '../types';
 import api from '../lib/api';
 
@@ -12,7 +12,7 @@ interface AccountDashboardProps {
   onLogout: () => void;
   t: (key: string) => string;
   onRemoveFromWishlist: (productId: string) => void;
-  onAddToCart: (product: Product, color?: any, quantity?: number, variantId?: number) => void;
+  onAddToCart: (product: Product, color?: any, quantity?: number) => void;
   onNavigate?: (view: 'home') => void;
 }
 
@@ -77,66 +77,39 @@ const ConfirmModal: React.FC<{
   );
 };
 
-// --- ITEM WISHLIST (MEJORADO CON STOCK) ---
+// --- ITEM WISHLIST ---
 const WishlistItem: React.FC<{
-  item: any; 
+  item: Product;
   onRemove: (id: string) => void;
-  // Agregá los parámetros color y variantId aquí:
-  onAddToCart: (item: Product, color: any, quantity: number, variantId: number) => void; 
+  onAddToCart: (item: Product, quantity: number) => void;
   t: (key: string) => string;
 }> = ({ item, onRemove, onAddToCart, t }) => {
   const [quantity, setQuantity] = useState(1);
-  
-  // Lógica de Stock: Si no viene el dato, asumimos 0 por seguridad
-  const hasStock = (item.stock || 0) > 0;
-
   return (
     <div className="flex gap-4 p-4 border border-stone-100 bg-white hover:border-stone-200 transition-colors group relative rounded-sm">
        <button onClick={(e) => { e.stopPropagation(); onRemove(item.id); }} className="absolute top-3 right-3 p-1.5 text-stone-300 hover:text-red-600 hover:bg-red-50 rounded-full transition-all z-10" title="Eliminar">
           <Trash2 className="w-4 h-4" />
        </button>
-       
-       <div className="w-24 h-24 bg-stone-100 flex-shrink-0 overflow-hidden rounded-sm relative">
-         {/* Imagen con efecto gris si no hay stock */}
-         <img src={item.image} alt={item.name} className={`w-full h-full object-cover transition-transform group-hover:scale-105 duration-500 ${!hasStock ? 'opacity-50 grayscale' : ''}`} />
-         
-         {/* Etiqueta de Agotado */}
-         {!hasStock && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-                <span className="text-[9px] font-bold uppercase tracking-widest bg-stone-900 text-white px-2 py-1 rounded-sm">Agotado</span>
-            </div>
-         )}
+       <div className="w-24 h-24 bg-stone-100 flex-shrink-0 overflow-hidden rounded-sm">
+         <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" />
        </div>
-
        <div className="flex flex-col justify-between py-1 flex-1">
          <div>
            <p className="text-[10px] uppercase tracking-widest text-stone-400">{item.category}</p>
            <h4 className="font-serif text-lg text-stone-900 leading-tight pr-8">{item.name}</h4>
          </div>
-         
          <div className="flex justify-between items-end gap-2">
             <span className="text-sm font-medium hidden md:block">${item.price.toLocaleString()}</span>
-            
-            {/* Solo mostramos el botón de agregar si hay stock */}
-            {hasStock ? (
-                <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-                   <div className="flex items-center border border-stone-200 rounded-full h-7 px-1">
-                     <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-1 hover:text-stone-900 text-stone-400"><Minus className="w-3 h-3" /></button>
-                     <span className="text-xs font-medium w-5 text-center">{quantity}</span>
-                     <button onClick={() => setQuantity(quantity + 1)} className="p-1 hover:text-stone-900 text-stone-400"><Plus className="w-3 h-3" /></button>
-                   </div>
-                   <button onClick={(e) => { e.stopPropagation(); onAddToCart(item, undefined, quantity, item.selectedVariantId);}} className="bg-stone-900 text-white text-[10px] uppercase tracking-widest px-3 py-1.5 rounded hover:bg-stone-700 transition-colors">
-                     Agregar
-                   </button>
-
-                   
-                </div>
-            ) : (
-                // Texto de alerta si no hay stock
-                <span className="text-xs text-red-500 font-medium flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" /> Sin Stock
-                </span>
-            )}
+            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+               <div className="flex items-center border border-stone-200 rounded-full h-7 px-1">
+                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-1 hover:text-stone-900 text-stone-400"><Minus className="w-3 h-3" /></button>
+                 <span className="text-xs font-medium w-5 text-center">{quantity}</span>
+                 <button onClick={() => setQuantity(quantity + 1)} className="p-1 hover:text-stone-900 text-stone-400"><Plus className="w-3 h-3" /></button>
+               </div>
+               <button onClick={(e) => { e.stopPropagation(); onAddToCart(item, quantity); }} className="bg-stone-900 text-white text-[10px] uppercase tracking-widest px-3 py-1.5 rounded hover:bg-stone-700 transition-colors">
+                 Agregar
+               </button>
+            </div>
          </div>
        </div>
     </div>
@@ -152,10 +125,6 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
-
-  // NUEVO: Estado para Wishlist real
-  const [wishlistItems, setWishlistItems] = useState<any[]>([]);
-  const [loadingWishlist, setLoadingWishlist] = useState(false);
 
   // Address Form States
   const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
@@ -175,7 +144,6 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
   useEffect(() => {
     if (activeTab === 'orders') fetchOrders();
     if (activeTab === 'addresses') fetchAddresses();
-    if (activeTab === 'wishlist') fetchWishlist(); // <--- Cargar wishlist real al abrir tab
   }, [activeTab]);
 
   const fetchOrders = async () => {
@@ -192,27 +160,6 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
       const { data } = await api.get('/api/store/addresses');
       setAddresses(data || []);
     } catch (err) { console.error(err); } finally { setLoadingAddresses(false); }
-  };
-
-  // NUEVO: Función para cargar la wishlist de la BD
-  const fetchWishlist = async () => {
-    setLoadingWishlist(true);
-    try {
-      const { data } = await api.get('/api/store/wishlist');
-      setWishlistItems(data || []);
-    } catch (err) { console.error(err); } finally { setLoadingWishlist(false); }
-  };
-
-  // NUEVO: Función para borrar de la wishlist real
-  const handleRemoveItemFromWishlist = async (productId: string) => {
-    try {
-        // 1. Borrar en backend
-        await api.delete(`/api/store/wishlist/${productId}`);
-        // 2. Actualizar estado local (optimista)
-        setWishlistItems(prev => prev.filter(item => item.id !== productId));
-        // 3. Notificar al padre para actualizar el contador del header
-        onRemoveFromWishlist(productId);
-    } catch (error) { console.error(error); }
   };
 
   // Address Handlers
@@ -319,10 +266,10 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                     const BadgeIcon = badge.icon;
                     return (
                       <div key={order.id} className="bg-white border border-stone-200 rounded-sm hover:border-stone-300 transition-colors">
-                         {/* Header Corregido */}
+                         {/* Header Corregido: Estilo normal y serio, sin serif */}
                          <div className="px-6 py-4 flex flex-wrap justify-between items-center gap-4 border-b border-stone-100">
                             <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-                               <span className="font-bold text-sm text-stone-900">Pedido #{order.id}</span>
+   <span className="font-bold text-sm text-stone-900">Pedido #{order.id}</span>
                                <span className="text-sm text-stone-400 font-light">{new Date(order.created_at).toLocaleDateString()}</span>
                             </div>
                             <div className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold border flex items-center gap-2 ${badge.color}`}>
@@ -330,7 +277,7 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                             </div>
                          </div>
 
-                         {/* Items con Lightbox */}
+                         {/* Items con funcionalidad de ZOOM (Lightbox) */}
                          <div className="p-6 flex flex-col gap-4">
                             {order.items.map((item: any, idx: number) => {
                                let opts: any = {};
@@ -364,6 +311,7 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                                           </div>
                                           {variantText && <p className="text-sm text-stone-500">{variantText}</p>}
                                           
+                                          {/* Precio corregido: 1 und - $10 */}
                                           <p className="text-sm text-stone-500 mt-1">
                                              1 und - <span className="font-bold text-stone-900">${Number(item.unit_price).toLocaleString()}</span>
                                           </p>
@@ -446,26 +394,13 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
         return (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
              <h3 className="font-serif text-2xl text-stone-900 mb-6">{t('account_wishlist')}</h3>
-             {loadingWishlist ? (
-               <div className="py-12 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-stone-300" /></div>
-             ) : wishlistItems.length > 0 ? (
+             {user.wishlist.length > 0 ? (
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 {wishlistItems.map((item) => (
-                   <WishlistItem 
-                      key={item.id} 
-                      item={item} 
-                      onRemove={handleRemoveItemFromWishlist}                    
-                      onAddToCart={(itm, qty) => onAddToCart(itm, undefined, qty, itm.selectedVariantId)}
-                      t={t} 
-                   />
+                 {user.wishlist.map((item) => (
+                   <WishlistItem key={item.id} item={item} onRemove={onRemoveFromWishlist} onAddToCart={(itm, qty) => onAddToCart(itm, undefined, qty)} t={t} />
                  ))}
                </div>
-             ) : (
-                <div className="text-center py-20 bg-stone-50 border border-stone-100 border-dashed">
-                    <Heart className="w-8 h-8 mx-auto text-stone-300 mb-4" />
-                    <p className="text-stone-500">Aún no has guardado piezas de inspiración.</p>
-                </div>
-             )}
+             ) : <div className="text-center py-20 bg-stone-50 border border-stone-100 border-dashed"><Heart className="w-8 h-8 mx-auto text-stone-300 mb-4" /><p className="text-stone-500">Aún no has guardado piezas de inspiración.</p></div>}
           </div>
         );
 
