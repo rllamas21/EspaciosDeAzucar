@@ -449,14 +449,18 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                <div onClick={() => setActiveTab('addresses')} className="group cursor-pointer border border-stone-200 p-8 hover:border-stone-900 transition-colors bg-white rounded-sm shadow-sm hover:shadow-md">
                   <MapPin className="w-8 h-8 text-stone-300 mb-4 group-hover:text-stone-900 transition-colors" strokeWidth={1.5} />
                   <h4 className="font-serif text-xl mb-1">{t('account_addresses')}</h4>
-                  <p className="text-sm text-stone-500 mb-4">Gestionar entregas</p>
-                  <ChevronRight className="w-5 h-5 text-stone-300 group-hover:translate-x-1 transition-all" />
+                  <div className="flex items-center justify-between gap-3 mb-4">
+    <p className="text-sm text-stone-500 flex-1 m-0">Gestionar entregas</p>
+    <ChevronRight className="w-5 h-5 text-stone-300 group-hover:translate-x-1 transition-all flex-shrink-0" />
+  </div>
                </div>
                <div onClick={() => setActiveTab('wishlist')} className="group cursor-pointer border border-stone-200 p-8 hover:border-stone-900 transition-colors bg-white rounded-sm shadow-sm hover:shadow-md">
                   <Heart className="w-8 h-8 text-stone-300 mb-4 group-hover:text-stone-900 transition-colors" strokeWidth={1.5} />
                   <h4 className="font-serif text-xl mb-1">{t('account_wishlist')}</h4>
-                  <p className="text-sm text-stone-500 mb-4">Tus favoritos guardados</p>
-                  <ChevronRight className="w-5 h-5 text-stone-300 group-hover:translate-x-1 transition-all" />
+                  <div className="flex items-center justify-between gap-3 mb-4">
+    <p className="text-sm text-stone-500 flex-1 m-0">Tus favoritos guardados</p>
+    <ChevronRight className="w-5 h-5 text-stone-300 group-hover:translate-x-1 transition-all flex-shrink-0" />
+  </div>
                </div>
             </div>
           </div>
