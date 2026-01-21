@@ -86,7 +86,7 @@ const WishlistItem: React.FC<{
   onAddToCart: (item: WishlistUIItem, quantity: number) => void;
   t: (key: string) => string;
 }> = ({ item, onRemove, onAddToCart, t }) => {
-  
+
   const [quantity, setQuantity] = useState(1);
   return (
     <div className="flex gap-4 p-4 border border-stone-100 bg-white hover:border-stone-200 transition-colors group relative rounded-sm">
@@ -440,8 +440,11 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
                <div onClick={() => setActiveTab('orders')} className="group cursor-pointer border border-stone-200 p-8 hover:border-stone-900 transition-colors bg-white rounded-sm shadow-sm hover:shadow-md">
                   <Package className="w-8 h-8 text-stone-300 mb-4 group-hover:text-stone-900 transition-colors" strokeWidth={1.5} />
                   <h4 className="font-serif text-xl mb-1">{t('account_orders')}</h4>
-                  <p className="text-sm text-stone-500 mb-4">Revisar estado y envíos</p>
-                  <ChevronRight className="w-5 h-5 text-stone-300 group-hover:translate-x-1 transition-all" />
+                  <div className="flex items-center justify-between gap-3 mb-4">
+  <p className="text-sm text-stone-500 flex-1 m-0">Revisar estado y envíos</p>
+  <ChevronRight className="w-5 h-5 text-stone-300 group-hover:translate-x-1 transition-all flex-shrink-0" />
+</div>
+
                </div>
                <div onClick={() => setActiveTab('addresses')} className="group cursor-pointer border border-stone-200 p-8 hover:border-stone-900 transition-colors bg-white rounded-sm shadow-sm hover:shadow-md">
                   <MapPin className="w-8 h-8 text-stone-300 mb-4 group-hover:text-stone-900 transition-colors" strokeWidth={1.5} />
