@@ -152,12 +152,38 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
     }
   };
 
-  const handleConfirmTransfer = () => {
+  const handleConfirmTransfer = async () => {
+    // 1. Validaciones
     if (!transferFile) {
       alert("Por favor adjunta el comprobante.");
       return;
     }
-    setIsTransferSuccess(true);
+    if (!createdOrderId) {
+      alert("Error: No se ha generado la orden correctamente.");
+      return;
+    }
+
+    // 2. Preparar envío
+    setLoadingOrder(true); // Usamos el estado de carga para bloquear el botón
+    
+    try {
+      const formData = new FormData();
+      formData.append("receipt", transferFile); // El archivo
+      formData.append("orderId", createdOrderId.toString()); // El ID de la orden creada en el paso 1
+
+      // 3. Enviar al Backend (Asumimos que crearás esta ruta en el siguiente paso)
+      await api.post("/api/store/checkout/confirm-transfer", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      // 4. Éxito
+      setIsTransferSuccess(true);
+    } catch (error) {
+      console.error("Error subiendo comprobante:", error);
+      alert("Hubo un error al enviar el comprobante. Intenta nuevamente.");
+    } finally {
+      setLoadingOrder(false);
+    }
   };
 
   const OrderSummaryContent = () => (
@@ -319,9 +345,17 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
                     <>
                         <div className="grid grid-cols-2 gap-4 mb-8">
                         {isMpActive && (
-                            <button onClick={() => { setPaymentMethod('mercadopago'); handleMercadoPagoRedirect(); }} disabled={!createdOrderId || isRedirecting} className="border border-stone-900 bg-stone-50 rounded-lg p-4 flex flex-col items-center gap-2 hover:bg-stone-100 disabled:opacity-50">
-                                {isRedirecting ? <Loader2 className="w-5 h-5 animate-spin text-stone-700" /> : <img src="/mercadonegro.png" alt="MP" className="h-6 object-contain" />}
-                            </button>
+                            <button 
+  onClick={() => { setPaymentMethod('mercadopago'); handleMercadoPagoRedirect(); }} 
+  disabled={!createdOrderId || isRedirecting} 
+  className="border border-stone-900 bg-stone-50 rounded-lg p-4 flex items-center justify-center hover:bg-stone-100 disabled:opacity-50 min-h-[100px] transition-all"
+>
+  {isRedirecting ? (
+    <Loader2 className="w-6 h-6 animate-spin text-stone-700" />
+  ) : (
+    <img src="/mercadonegro.png" alt="MP" className="h-8 object-contain" /> 
+  )}
+</button>
                         )}
 
                         {bankDetails && bankDetails.isActive && (
@@ -362,7 +396,20 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
                                 </div>
                             </div>
 
-                            <button onClick={handleConfirmTransfer} className="w-full bg-stone-900 text-white py-4 rounded font-bold uppercase tracking-widest hover:bg-stone-800 shadow-lg">Informar Pago de ${(finalTotal).toLocaleString()}</button>
+                            <button 
+  onClick={handleConfirmTransfer} 
+  disabled={loadingOrder}
+  className="w-full bg-stone-900 text-white py-4 rounded font-bold uppercase tracking-widest hover:bg-stone-800 shadow-lg flex items-center justify-center gap-2 disabled:opacity-70"
+>
+  {loadingOrder ? (
+    <>
+      <Loader2 className="w-5 h-5 animate-spin" />
+      Enviando...
+    </>
+  ) : (
+    `Informar Pago de $${finalTotal.toLocaleString()}`
+  )}
+</button>
                         </div>
                         )}
                     </>
