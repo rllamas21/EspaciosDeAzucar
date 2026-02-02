@@ -65,15 +65,15 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
     fetchConfig();
   }, []);
 
-  // Efecto cuenta regresiva
+// Efecto cuenta regresiva
   useEffect(() => {
     if (isTransferSuccess && countdown > 0) {
       const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
       return () => clearTimeout(timer);
     } else if (isTransferSuccess && countdown === 0) {
-      onReturnToShop();
+      window.location.href = '/'; 
     }
-  }, [isTransferSuccess, countdown, onReturnToShop]);
+  }, [isTransferSuccess, countdown]);
 
   const handleCopy = (text: string, field: string) => {
     if(!text) return;
