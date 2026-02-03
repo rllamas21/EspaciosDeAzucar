@@ -66,7 +66,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     account_wishlist: 'Lista de Deseos',
     account_logout: 'Cerrar Sesión',
     account_welcome: 'Bienvenida de nuevo',
-    account_dashboard_desc: 'Tu espacio personal en Azúcar. Gestiona tus proyectos arquitectónicos y sigue el estado de tus piezas signature desde aquí.',
+    account_dashboard_desc: 'Tu espacio personal. Gestiona tus proyectos arquitectónicos y sigue el estado de tus piezas signature desde aquí.',
     account_no_orders: 'No tienes pedidos en curso.',
     account_no_addresses: 'No hay direcciones guardadas.',
     account_no_wishlist: 'Tu lista de deseos está vacía.'
