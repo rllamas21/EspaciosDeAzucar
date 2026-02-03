@@ -8,12 +8,13 @@ interface CheckoutPageProps {
   cart: CartItem[];
   total: number;
   onReturnToShop: () => void;
+  onPaymentSuccess: () => void;
 }
 
 type CheckoutStep = 'shipping' | 'payment';
 type PaymentMethodType = 'mercadopago' | 'transfer' | null;
 
-const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop }) => {
+const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop, onPaymentSuccess }) => { 
   const [step, setStep] = useState<CheckoutStep>('shipping');
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   
@@ -24,6 +25,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>(null);
   const [loadingOrder, setLoadingOrder] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  
   
   // DATOS REALES DE LA BASE DE DATOS
   const [bankDetails, setBankDetails] = useState<any>(null);
@@ -71,7 +73,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
       const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
       return () => clearTimeout(timer);
     } else if (isTransferSuccess && countdown === 0) {
-      window.location.href = '/'; 
+      onReturnToShop(); 
     }
   }, [isTransferSuccess, countdown]);
 
@@ -177,6 +179,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, total, onReturnToShop
       });
 
       // 4. Éxito
+      onPaymentSuccess();
       setIsTransferSuccess(true);
     } catch (error) {
       console.error("Error subiendo comprobante:", error);

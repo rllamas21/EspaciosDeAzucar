@@ -818,6 +818,7 @@ const handleRemoveFromWishlist = async (variantId: number) => {
     cart={cart}
     total={cart.reduce((a, c) => a + c.price * c.quantity, 0)}
     onReturnToShop={() => setView('home')}
+    onPaymentSuccess={() => setCart([])}
   />
 ) : view === 'checkout_return' ? (
   <CheckoutReturn
