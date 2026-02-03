@@ -884,9 +884,17 @@ const handleRemoveFromWishlist = async (variantId: number) => {
                <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-16">
                   <div className="flex-1 space-y-8 order-2 md:order-1">
                     <div className="border-l border-stone-700 pl-6">
-                       <h3 className="font-serif text-4xl md:text-5xl mb-6">El Detalle Técnico</h3>
-                       <p className="text-stone-400 font-light leading-relaxed max-w-lg text-lg">En Espacios de Azúcar, creemos que una manilla no es solo funcionalidad—es el apretón de manos de un edificio. Nuestra colección de herrajes está fresada con precisión.</p>
-                    </div>
+  {/* TÍTULO MEJORADO */}
+  <h3 className="font-serif text-4xl md:text-5xl mb-6">La Calidez de los Detalles</h3>
+  
+  {/* TEXTO MEJORADO (Sin guiones raros ni frases de robot) */}
+  <p className="text-stone-400 font-light leading-relaxed max-w-lg text-lg">
+    En Espacios de Azúcar creemos que el diseño no tiene que ser frío. 
+    Buscamos el equilibrio perfecto entre la estética moderna y esa sensación 
+    de abrigo que necesitas al llegar a casa. Piezas pensadas para ser tocadas, 
+    usadas y vividas.
+  </p>
+</div>
                   </div>
                   <div className="flex-1 w-full order-1 md:order-2">
                     <div className="relative aspect-square md:aspect-[4/3] bg-stone-800 p-2 border border-stone-700"><img src="https://images.unsplash.com/photo-1615873968403-89e068629265?q=80&w=1200&auto=format&fit=crop" alt="Detail" className="object-cover w-full h-full opacity-80" /></div>
