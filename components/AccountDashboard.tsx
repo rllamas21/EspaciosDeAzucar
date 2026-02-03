@@ -432,7 +432,7 @@ const AccountDashboard: React.FC<AccountDashboardProps> = ({ user, onLogout, t, 
             <div className="bg-stone-900 text-white p-8 md:p-12 relative overflow-hidden rounded-sm shadow-xl">
               <div className="relative z-10">
                 <h2 className="font-serif text-3xl md:text-4xl mb-4">Bienvenida de nuevo, {user.name?.split(' ')[0]}.</h2>
-                <p className="text-stone-400 font-light max-w-lg leading-relaxed">Tu espacio personal en Azúcar. Gestiona tus pedidos recientes, direcciones de entrega y tu lista de deseos desde aquí.</p>
+                <p className="text-stone-400 font-light max-w-lg leading-relaxed">Tu espacio personal. Gestiona tus pedidos recientes, direcciones de entrega y tu lista de deseos desde aquí.</p>
               </div>
               <div className="absolute right-0 top-0 w-64 h-full bg-gradient-to-l from-white/5 to-transparent pointer-events-none"></div>
             </div>
