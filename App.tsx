@@ -567,6 +567,15 @@ const handleRemoveFromWishlist = async (variantId: number) => {
   };
 
   const handleAddToCartRequest = (product: Product, color?: ColorOption, size?: string, quantity = 1) => { 
+    // 🔒 BLOQUEO DE SEGURIDAD: Si no hay usuario, pedimos login y cortamos.
+    if (!user) {
+      setAuthMode('login');
+      setIsAuthModalOpen(true);
+      showToast("Inicia sesión para agregar productos", "Cuenta Requerida");
+      return; // 🛑 AQUÍ SE DETIENE TODO, no agrega nada.
+    }
+
+    // --- El código original sigue aquí abajo ---
     if (size) { 
       commitAddToCart(product, color, size, quantity); 
     } else if (product.sizes && product.sizes.length > 0) { 
